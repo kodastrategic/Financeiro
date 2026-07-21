@@ -100,22 +100,17 @@
     async add(item) {
       const copy = lowerKeys({ ...item }, this._name);
       if (copy.id && !PK_STR.has(this._name)) delete copy.id;
-      // Tenta via supabase client
-      const { error } = await this._client.from(this._name).insert(copy);
-      if (error) {
-        // Se falhar, tenta via fetch direto como fallback
-        console.warn('Supabase client insert failed, trying fetch:', error);
-        const url = window.SUPABASE_CONFIG.url.replace(/\/$/, '') + '/rest/v1/' + this._name;
-        const headers = {
-          'Content-Type': 'application/json',
-          'apikey': window.SUPABASE_CONFIG.anonKey,
-          'Authorization': 'Bearer ' + window.SUPABASE_CONFIG.anonKey,
-          'Prefer': 'return=minimal'
-        };
-        const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(copy) });
+      const url = window.SUPABASE_CONFIG.url.replace(/\/$/, '') + '/rest/v1/' + this._name;
+      const headers = {
+        'Content-Type': 'application/json',
+        'apikey': window.SUPABASE_CONFIG.anonKey,
+        'Authorization': 'Bearer ' + window.SUPABASE_CONFIG.anonKey,
+        'Prefer': 'return=minimal'
+      };
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(copy) });
+      if (!res.ok) {
         const text = await res.text();
-        if (!res.ok) throw new Error(`insert ${this._name}: HTTP ${res.status} ${res.statusText} — ${text}`);
-        console.log('Fetch insert OK:', text);
+        throw new Error(`insert ${this._name}: HTTP ${res.status} — ${text}`);
       }
       return PK_STR.has(this._name) ? copy[pk(this._name)] : (copy.id||Date.now());
     }
@@ -196,9 +191,10 @@
     'debts', 'debtpayments', 'invoicepayments', 'recurrings', 'fixedexpenses',
     'fixedpayments', 'budgets'];
   TABLES.forEach(name => { window.db[name] = new TableWrapper(supabase, name); });
-  // Função de debug: testa insert via fetch direto
+
+  // Debug: testa insert via fetch direto (abrir console F12)
   window.debugInsert = async function(table, data) {
-    const url = SUPABASE_CONFIG.url.replace(/\/$/, '') + '/rest/v1/' + table;
+    const url = window.SUPABASE_CONFIG.url.replace(/\/$/, '') + '/rest/v1/' + table;
     const headers = {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_CONFIG.anonKey,
@@ -209,12 +205,8 @@
       const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(data) });
       console.log('Status:', res.status, res.statusText);
       const text = await res.text();
-      console.log('Response:', text);
-      if (!res.ok) {
-        const errBody = JSON.parse(text);
-        console.error('Error code:', errBody.code, 'message:', errBody.message);
-      }
+      console.log('Response body:', text);
     } catch(e) { console.error('Fetch error:', e); }
   };
-  console.log('FinanceApp v2 — Supabase conectado (debugInsert disponível no console)');
+  console.log('FinanceApp v2 — db.js v3 (fetch inserts, debugInsert no console)');
 })();
