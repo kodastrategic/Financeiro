@@ -93,21 +93,29 @@ async function showAutocomplete(input,box){
   const cmds=await db.commands.toArray();
   if(!cmds.length){box.style.display='none';return;}
   let filtered, prefix;
+  // Monta lista combinada: comandos + categorias (como fallback)
+  const cats=await db.categories.toArray();
+  const allEntries=[];
+  const cmdKeywords=new Set(cmds.map(c=>c.keyword));
+  for(const c of cmds)allEntries.push({keyword:c.keyword,category:c.category,type:c.type});
+  for(const cat of cats){
+    if(!cmdKeywords.has(cat.name))allEntries.push({keyword:cat.name,category:cat.name,type:cat.type});
+  }
   if(text.startsWith('/')){
     prefix='/';
     const partial=text.slice(1).toLowerCase();
-    filtered=cmds.filter(c=>c.keyword.includes(partial));
+    filtered=allEntries.filter(c=>c.keyword.includes(partial));
   }else if(text.length>0){
     prefix='';
     const partial=text.toLowerCase();
-    filtered=cmds.filter(c=>c.keyword.includes(partial));
+    filtered=allEntries.filter(c=>c.keyword.includes(partial));
   }else{
     // Vazio — mostra os mais usados
     prefix='';
     const all=await db.transactions.toArray();
     const counts={};for(const t of all)if(t.command)counts[t.command]=(counts[t.command]||0)+1;
-    cmds.sort((a,b)=>(counts[b.keyword]||0)-(counts[a.keyword]||0));
-    filtered=cmds;
+    allEntries.sort((a,b)=>(counts[b.keyword]||0)-(counts[a.keyword]||0));
+    filtered=allEntries;
   }
   filtered=filtered.slice(0,8);
   if(!filtered.length||text.includes(' ')){box.style.display='none';return;}
@@ -181,8 +189,15 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
     const all=await db.commands.toArray();
     cmd=all.find(c=>c.keyword.toLowerCase()===keyword.toLowerCase());
     if(!cmd){
-      const names=all.map(c=>c.keyword).join(', ');
-      return{success:false,message:`Comando "${keyword}" não encontrado. Disponíveis: ${names||'(nenhum)'}`};
+      // Fallback: procura uma categoria com o mesmo nome
+      const cats=await db.categories.toArray();
+      const cat=cats.find(c=>c.name.toLowerCase()===keyword.toLowerCase());
+      if(cat){
+        cmd={keyword:cat.name,category:cat.name,type:cat.type};
+      }else{
+        const names=all.map(c=>c.keyword).join(', ');
+        return{success:false,message:`Comando "${keyword}" não encontrado. Disponíveis: ${names||'(nenhum)'}`};
+      }
     }
   }catch(e){console.error('find command error',e);return{success:false,message:`Erro ao buscar "${keyword}": ${e.message}`};}
   if(!cmd)return{success:false,message:`Comando "${keyword}" não encontrado. Crie na aba Comandos.`};
