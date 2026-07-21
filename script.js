@@ -72,7 +72,9 @@ function setupTabNavigation(){
       b.classList.add('active');$(`#${b.dataset.tab}`).classList.add('active');
       if(b.dataset.tab==='dashboard')Object.values(charts).forEach(c=>c?.resize());
       if(b.dataset.tab==='chat'){$('#chatInput').focus();scrollChatToTop();}
-      if(b.dataset.tab==='cards'){loadCardsTable();loadInstallmentsTable();loadRecurringsTable();loadFixedTable();loadDebtsTable();loadDebtPaymentsTable();loadCardSelect();}
+      if(b.dataset.tab==='cards'){loadCardsTable();loadCardSelect();}
+      if(b.dataset.tab==='bills'){loadFixedTable();loadRecurringsTable();}
+      if(b.dataset.tab==='debts'){loadInstallmentsTable();loadDebtsTable();loadDebtPaymentsTable();loadCardSelect();}
       if(b.dataset.tab==='commands'){loadBudgetsTable();}
     });
   });

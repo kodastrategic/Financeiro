@@ -515,8 +515,8 @@ nav {
 
 .inline-form { margin-bottom: 1rem; }
 
-/* ===== CARDS ===== */
-#cards {
+/* ===== CARDS / BILLS / DEBTS ===== */
+#cards, #bills, #debts {
   padding: 1.5rem 2rem;
   max-width: 1000px;
   margin: 0 auto;
@@ -559,7 +559,7 @@ nav {
 .form-group input:focus,
 .form-group select:focus { border-color: var(--accent); }
 .form-group select option { background: var(--bg-secondary); color: var(--text-primary); }
-#cards .panel .btn-primary { margin-top: 0.5rem; }
+#cards .panel .btn-primary, #bills .panel .btn-primary, #debts .panel .btn-primary { margin-top: 0.5rem; }
 
 .form-inline {
   display: flex;
@@ -895,7 +895,7 @@ td code { color: var(--accent); font-size: 0.85rem; }
   .charts-grid {
     grid-template-columns: 1fr;
   }
-  #dashboard, #commands, #cards {
+  #dashboard, #commands, #cards, #bills, #debts {
     padding: 1rem;
   }
   .commands-layout {

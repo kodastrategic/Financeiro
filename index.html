@@ -30,6 +30,8 @@
 <button class="tab-btn" data-tab="dashboard">Dashboard</button>
 <button class="tab-btn" data-tab="commands">Comandos</button>
 <button class="tab-btn" data-tab="cards">Cartões</button>
+<button class="tab-btn" data-tab="bills">Contas</button>
+<button class="tab-btn" data-tab="debts">Dívidas</button>
 </div>
 </nav>
 
@@ -144,7 +146,60 @@
 <tbody id="cardsBody"></tbody></table></div>
 <p class="empty-state" id="emptyCards">Nenhum cartão.</p>
 </div>
+</div>
+</section>
 
+<section id="bills" class="tab-content">
+<div class="cards-layout">
+<div class="panel"><h2>📄 Contas Fixas</h2>
+<form id="fixedForm" autocomplete="off">
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" id="fixedName" required></div>
+<div class="form-group"><label>Valor Mensal</label><input type="number" id="fixedAmount" step="0.01" required></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Dia Vencimento</label><input type="number" id="fixedDueDay" min="1" max="31" placeholder="5"></div>
+<div class="form-group"><label>Categoria</label><select id="fixedCategory"></select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="fixedActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
+</div>
+<button type="submit" class="btn-primary">Adicionar Conta</button>
+</form>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;margin-bottom:0.5rem">
+<span style="font-size:0.82rem;color:var(--text-secondary)">Contas cadastradas</span>
+<button class="btn-sm" onclick="openFixedModal()">📋 Ver Contas do Mês</button>
+</div>
+<div class="table-wrapper"><table><thead><tr><th>Nome</th><th>Valor</th><th>Vencimento</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
+<tbody id="fixedBody"></tbody></table></div>
+<p class="empty-state" id="emptyFixed">Nenhuma conta fixa.</p>
+</div>
+
+<div class="panel"><h2>🔄 Compras Recorrentes</h2>
+<form id="recurringForm" autocomplete="off">
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" id="recName" required></div>
+<div class="form-group"><label>Valor Mensal</label><input type="number" id="recAmount" step="0.01" required></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Cartão</label><select id="recCard"></select></div>
+<div class="form-group"><label>Categoria</label><select id="recCategory"></select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Data de Início</label><input type="date" id="recStartDate" required></div>
+<div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="recActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
+</div>
+<button type="submit" class="btn-primary">Adicionar Recorrente</button>
+</form>
+<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Valor</th><th>Cartão</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
+<tbody id="recBody"></tbody></table></div>
+<p class="empty-state" id="emptyRec">Nenhuma compra recorrente.</p>
+</div>
+</div>
+</section>
+
+<section id="debts" class="tab-content">
+<div class="cards-layout">
 <div class="panel"><h2>🛒 Compras Parceladas</h2>
 <form id="installmentForm" autocomplete="off">
 <div class="form-row">
@@ -172,67 +227,22 @@
 <p class="empty-state" id="emptyInstallments">Nenhuma compra parcelada.</p>
 </div>
 
-  <div class="panel"><h2>📄 Contas Fixas</h2>
-  <form id="fixedForm" autocomplete="off">
-  <div class="form-row">
-  <div class="form-group"><label>Nome</label><input type="text" id="fixedName" required></div>
-  <div class="form-group"><label>Valor Mensal</label><input type="number" id="fixedAmount" step="0.01" required></div>
-  </div>
-  <div class="form-row">
-  <div class="form-group"><label>Dia Vencimento</label><input type="number" id="fixedDueDay" min="1" max="31" placeholder="5"></div>
-  <div class="form-group"><label>Categoria</label><select id="fixedCategory"></select></div>
-  </div>
-  <div class="form-row">
-  <div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="fixedActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
-  </div>
-  <button type="submit" class="btn-primary">Adicionar Conta</button>
-  </form>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;margin-bottom:0.5rem">
-    <span style="font-size:0.82rem;color:var(--text-secondary)">Contas cadastradas</span>
-    <button class="btn-sm" onclick="openFixedModal()">📋 Ver Contas do Mês</button>
-  </div>
-  <div class="table-wrapper"><table><thead><tr><th>Nome</th><th>Valor</th><th>Vencimento</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
-  <tbody id="fixedBody"></tbody></table></div>
-  <p class="empty-state" id="emptyFixed">Nenhuma conta fixa.</p>
-  </div>
-
-  <div class="panel"><h2>🔄 Compras Recorrentes</h2>
-<form id="recurringForm" autocomplete="off">
+<div class="panel"><h2>⚠️ Dívidas</h2>
+<form id="debtForm" autocomplete="off">
 <div class="form-row">
-<div class="form-group"><label>Nome</label><input type="text" id="recName" required></div>
-<div class="form-group"><label>Valor Mensal</label><input type="number" id="recAmount" step="0.01" required></div>
+<div class="form-group"><label>Nome</label><input type="text" id="debtName" required></div>
+<div class="form-group"><label>Credor</label><input type="text" id="debtCreditor"></div>
 </div>
 <div class="form-row">
-<div class="form-group"><label>Cartão</label><select id="recCard"></select></div>
-<div class="form-group"><label>Categoria</label><select id="recCategory"></select></div>
+<div class="form-group"><label>Valor Original</label><input type="number" id="debtOriginal" step="0.01" required></div>
+<div class="form-group"><label>Valor Atual</label><input type="number" id="debtCurrent" step="0.01" required></div>
 </div>
-<div class="form-row">
-<div class="form-group"><label>Data de Início</label><input type="date" id="recStartDate" required></div>
-<div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="recActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
-</div>
-<button type="submit" class="btn-primary">Adicionar Recorrente</button>
+<div class="form-group"><label>Observações</label><input type="text" id="debtNotes"></div>
+<button type="submit" class="btn-primary">Adicionar Dívida</button>
 </form>
-<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Valor</th><th>Cartão</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
-<tbody id="recBody"></tbody></table></div>
-<p class="empty-state" id="emptyRec">Nenhuma compra recorrente.</p>
-</div>
-
-  <div class="panel"><h2>⚠️ Dívidas</h2>
-  <form id="debtForm" autocomplete="off">
-  <div class="form-row">
-  <div class="form-group"><label>Nome</label><input type="text" id="debtName" required></div>
-  <div class="form-group"><label>Credor</label><input type="text" id="debtCreditor"></div>
-  </div>
-  <div class="form-row">
-  <div class="form-group"><label>Valor Original</label><input type="number" id="debtOriginal" step="0.01" required></div>
-  <div class="form-group"><label>Valor Atual</label><input type="number" id="debtCurrent" step="0.01" required></div>
-  </div>
-  <div class="form-group"><label>Observações</label><input type="text" id="debtNotes"></div>
-  <button type="submit" class="btn-primary">Adicionar Dívida</button>
-  </form>
-  <div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Credor</th><th>Original</th><th>Atual</th><th>Ação</th></tr></thead>
-  <tbody id="debtsBody"></tbody></table></div>
-  <p class="empty-state" id="emptyDebts">Nenhuma dívida.</p>
+<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Credor</th><th>Original</th><th>Atual</th><th>Ação</th></tr></thead>
+<tbody id="debtsBody"></tbody></table></div>
+<p class="empty-state" id="emptyDebts">Nenhuma dívida.</p>
 <div style="margin-top:1.5rem">
 <h3 style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem">📜 Histórico de Pagamentos</h3>
 <div class="table-wrapper"><table><thead><tr><th>Dívida</th><th>Data</th><th>Valor</th></tr></thead>
