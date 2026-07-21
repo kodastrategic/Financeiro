@@ -4,4 +4,3 @@ node_modules/
 Thumbs.db
 *.log
 old_db_recovery/
-supabase-config.js
