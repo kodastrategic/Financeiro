@@ -4,7 +4,7 @@
 -- Categories
 CREATE TABLE IF NOT EXISTS categories (
   name TEXT PRIMARY KEY,
-  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
   color TEXT NOT NULL DEFAULT '#3b82f6'
 );
 
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS commands (
   keyword TEXT PRIMARY KEY,
   category TEXT NOT NULL REFERENCES categories(name) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('income', 'expense'))
+  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense'))
 );
 
 -- Cards
@@ -20,21 +20,21 @@ CREATE TABLE IF NOT EXISTS cards (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   bank TEXT,
-  limit NUMERIC(12,2) DEFAULT 0,
-  availableLimit NUMERIC(12,2) DEFAULT 0,
-  closingDay INTEGER,
-  dueDay INTEGER,
+  "limit" NUMERIC(12,2) DEFAULT 0,
+  "availableLimit" NUMERIC(12,2) DEFAULT 0,
+  "closingDay" INTEGER,
+  "dueDay" INTEGER,
   color TEXT DEFAULT '#3b82f6'
 );
 
 -- Transactions
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
-  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
   category TEXT NOT NULL,
   description TEXT,
   amount NUMERIC(12,2) NOT NULL,
-  date TEXT NOT NULL,
+  "date" TEXT NOT NULL,
   command TEXT,
   invoicePaymentId INTEGER,
   fixedExpenseId INTEGER,
@@ -118,13 +118,13 @@ CREATE TABLE IF NOT EXISTS fixedPayments (
 -- Budgets
 CREATE TABLE IF NOT EXISTS budgets (
   category TEXT PRIMARY KEY,
-  limit NUMERIC(12,2) NOT NULL
+  "limit" NUMERIC(12,2) NOT NULL
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions("type");
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions("date");
 CREATE INDEX IF NOT EXISTS idx_transactions_command ON transactions(command);
 CREATE INDEX IF NOT EXISTS idx_transactions_invoice ON transactions(invoicePaymentId);
 CREATE INDEX IF NOT EXISTS idx_installments_card ON installments(cardId);
