@@ -1,0 +1,7 @@
+node_modules/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+old_db_recovery/
+supabase-config.js

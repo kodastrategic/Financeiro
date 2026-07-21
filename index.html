@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceApp</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<nav>
+<div class="nav-brand"><span class="logo">💰</span><h1>FinanceApp</h1></div>
+<div class="nav-tabs">
+<button class="tab-btn active" data-tab="chat">Chat</button>
+<button class="tab-btn" data-tab="dashboard">Dashboard</button>
+<button class="tab-btn" data-tab="commands">Comandos</button>
+<button class="tab-btn" data-tab="cards">Cartões</button>
+</div>
+</nav>
+
+<section id="chat" class="tab-content active">
+<div class="chat-container">
+<div class="chat-header">
+<span class="chat-hint">Digite /comando valor &mdash; Ex: <strong>/salario 2500</strong> <strong>/mercado 350</strong></span>
+</div>
+<div class="chat-messages" id="chatMessages">
+<div class="msg-system"><span>💡 Digite <strong>/entrada 500</strong> ou <strong>/saida 120</strong></span></div>
+</div>
+<div class="chat-input-area">
+<div class="autocomplete-box" id="autocompleteBox"></div>
+<input type="text" id="chatInput" placeholder="Digite /comando valor" autocomplete="off" autofocus>
+<button id="chatSend">Enviar</button>
+</div>
+</div>
+</section>
+
+<section id="dashboard" class="tab-content">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.5rem">
+<h2>Dashboard Financeiro</h2>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+<button class="btn-secondary" onclick="document.getElementById('importInput').click()">📥 Importar</button>
+<button class="btn-secondary" onclick="exportData()">📤 Exportar</button>
+<button class="btn-primary" onclick="generateAndSaveReport()">📄 Relatório</button>
+<button class="btn-secondary" onclick="exportBackupToFile()">💾 Backup</button>
+<button class="btn-danger" onclick="clearAllData()">🗑️ Limpar</button>
+</div>
+<input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+</div>
+<div class="summary" id="dashboardSummary">
+<div class="card card-saldo"><span class="card-label">💰 Saldo Atual</span><span class="card-value" id="dBalance">R$ 0</span></div>
+<div class="card card-projetado" onclick="openProjectedModal()" style="cursor:pointer"><span class="card-label">📈 Saldo Projetado</span><span class="card-value" id="dProjected">R$ 0</span></div>
+<div class="card card-dividas"><span class="card-label">💳 Dívidas</span><span class="card-value" id="dTotalDebt">R$ 0</span></div>
+<div class="card card-receita-mes"><span class="card-label">📊 Receita do Mês</span><span class="card-value" id="dMonthIncome">R$ 0</span></div>
+</div>
+<div class="summary-subtle">
+<div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">📄 Contas Fixas</span><span class="card-value" id="dFixedExpenses">R$ 0</span></div>
+<div class="card card-subtle" onclick="openMonthExpenseModal()" style="cursor:pointer"><span class="card-label">📉 Despesas do Mês</span><span class="card-value" id="dMonthExpense">R$ 0</span></div>
+<div class="card card-subtle" onclick="openFutureInstallmentsModal()" style="cursor:pointer"><span class="card-label">📅 Parcelas Futuras</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
+<div class="card card-subtle"><span class="card-label">⚠️ Dívidas Atrasadas</span><span class="card-value" id="dOverdueDebt">R$ 0</span></div>
+<div class="card card-subtle"><span class="card-label">🏦 Crédito Usado</span><span class="card-value" id="dCreditUsed">0%</span></div>
+</div>
+<div id="budgetAlerts" class="summary-subtle" style="display:none"></div>
+<div class="charts-grid">
+<div class="chart-container full"><h3>📈 Evolução do Saldo (real + projetado)</h3><canvas id="chartBalanceLine"></canvas></div>
+<div class="chart-container"><h3>📊 Gastos por Categoria</h3><canvas id="chartExpenseCategory"></canvas></div>
+<div class="chart-container"><h3>📊 Receitas por Categoria</h3><canvas id="chartIncomeCategory"></canvas></div>
+<div class="chart-container"><h3>📊 Gastos Mensais</h3><canvas id="chartMonthlyExpense"></canvas></div>
+<div class="chart-container"><h3>📊 Receitas Mensais</h3><canvas id="chartIncomePeriod"></canvas></div>
+<div class="chart-container"><h3>📊 Saídas por Período</h3><canvas id="chartExpensePeriod"></canvas></div>
+<div class="chart-container"><h3>📅 Compromissos Futuros</h3><canvas id="chartFutureCommitments"></canvas></div>
+<div class="chart-container"><h3>📈 Investimentos</h3><canvas id="chartInvestmentLine"></canvas></div>
+<div class="chart-container"><h3>📊 Comparação Mensal</h3><canvas id="chartComparison"></canvas></div>
+<div class="chart-container"><div class="chart-header"><h3>🏆 Top Despesas</h3><select class="chart-month-filter" id="filterTopExpense"></select></div><canvas id="chartTopExpense"></canvas></div>
+<div class="chart-container"><div class="chart-header"><h3>🏆 Top Receitas</h3><select class="chart-month-filter" id="filterTopIncome"></select></div><canvas id="chartTopIncome"></canvas></div>
+<div class="chart-container"><h3>⚠️ Endividamento</h3><canvas id="chartIndebtedness"></canvas></div>
+<div class="chart-container full"><h3>🔮 Fluxo de Caixa Projetado</h3><canvas id="chartCashFlow"></canvas></div>
+</div>
+</section>
+
+<section id="commands" class="tab-content">
+<div class="commands-layout">
+<div class="panel"><h2>Comandos</h2>
+<form id="commandForm" class="inline-form" autocomplete="off"><div class="form-inline">
+<input type="text" id="cmdKeyword" placeholder="/palavra" required>
+<select id="cmdCategory" required></select>
+<button type="submit" class="btn-primary" style="width:auto;padding:0.6rem 1rem;margin:0">Criar</button>
+</div></form>
+<div class="table-wrapper"><table><thead><tr><th>Comando</th><th>Categoria</th><th>Tipo</th><th>Ação</th></tr></thead>
+<tbody id="commandsBody"></tbody></table></div>
+<p class="empty-state" id="emptyCommands">Nenhum comando.</p>
+</div>
+<div class="panel"><h2>Categorias</h2>
+<form id="categoryForm" class="inline-form" autocomplete="off"><div class="form-inline">
+<input type="text" id="catName" placeholder="Nome" required>
+<label><input type="color" id="catColor" value="#3b82f6" style="width:40px;height:38px;padding:2px;cursor:pointer"></label>
+<select id="catType"><option value="income">Receita</option><option value="expense">Despesa</option></select>
+<button type="submit" class="btn-primary" style="width:auto;padding:0.6rem 1rem;margin:0">Criar</button>
+</div></form>
+<div class="table-wrapper"><table><thead><tr><th>Cor</th><th>Nome</th><th>Tipo</th><th>Ação</th></tr></thead>
+<tbody id="categoriesBody"></tbody></table></div>
+<p class="empty-state" id="emptyCategories">Nenhuma categoria.</p>
+</div>
+<div class="panel"><h2>📊 Orçamentos</h2>
+<form id="budgetForm" autocomplete="off"><div class="form-inline">
+<select id="budgetCategory" required style="flex:1;min-width:130px"></select>
+<input type="number" id="budgetLimit" placeholder="Limite mensal" step="0.01" required style="flex:0 0 140px">
+<button type="submit" class="btn-primary" style="width:auto;padding:0.6rem 1rem;margin:0">Definir</button>
+</div></form>
+<div class="table-wrapper"><table><thead><tr><th>Categoria</th><th>Limite</th><th>Gasto no Mês</th><th>Progresso</th><th>Ação</th></tr></thead>
+<tbody id="budgetsBody"></tbody></table></div>
+<p class="empty-state" id="emptyBudgets">Nenhum orçamento definido.</p>
+</div>
+</div>
+</section>
+
+<section id="cards" class="tab-content">
+<div class="cards-layout">
+<div class="panel"><h2>📇 Cartões</h2>
+<form id="cardForm" class="inline-form" autocomplete="off"><div class="form-inline" style="flex-wrap:wrap">
+<input type="text" id="cardName" placeholder="Nome" style="flex:1;min-width:100px" required>
+<input type="text" id="cardBank" placeholder="Banco" style="flex:1;min-width:100px">
+<input type="number" id="cardLimit" placeholder="Limite total" step="0.01" style="flex:0 0 100px">
+<input type="number" id="cardCloseDay" placeholder="Fechamento" min="1" max="31" style="flex:0 0 90px">
+<input type="number" id="cardDueDay" placeholder="Vencimento" min="1" max="31" style="flex:0 0 90px">
+<input type="color" id="cardColor" value="#3b82f6" style="width:40px;height:38px;padding:2px;cursor:pointer">
+<button type="submit" class="btn-primary" style="width:auto;padding:0.6rem 1rem;margin:0">Criar</button>
+</div></form>
+<div class="table-wrapper"><table><thead><tr><th></th><th>Nome</th><th>Banco</th><th>Limite</th><th>Disponível</th><th>Fechamento</th><th>Vencimento</th><th>Fatura</th><th>Ação</th></tr></thead>
+<tbody id="cardsBody"></tbody></table></div>
+<p class="empty-state" id="emptyCards">Nenhum cartão.</p>
+</div>
+
+<div class="panel"><h2>🛒 Compras Parceladas</h2>
+<form id="installmentForm" autocomplete="off">
+<div class="form-row">
+<div class="form-group"><label>Descrição</label><input type="text" id="instDesc" required></div>
+<div class="form-group"><label>Valor Total</label><input type="number" id="instTotal" step="0.01" required></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Parcelas</label><input type="number" id="instCount" min="1" required></div>
+<div class="form-group"><label>Valor Parcela</label><input type="number" id="instValue" step="0.01" readonly style="opacity:0.7"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Data Compra</label><input type="date" id="instDate" required></div>
+<div class="form-group"><label>1ª Parcela</label><input type="date" id="instFirstDate" required></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Cartão</label><select id="instCard"></select></div>
+<div class="form-group"><label>Categoria</label><select id="instCategory"></select></div>
+</div>
+<div class="form-group"><label>Observações</label><input type="text" id="instNotes"></div>
+<button type="submit" class="btn-primary" id="instSubmitBtn">Adicionar Compra</button>
+<button type="button" class="btn-secondary" id="instCancelBtn" style="display:none;margin-left:0.5rem" onclick="cancelEditInstallment()">Cancelar</button>
+</form>
+<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Descrição</th><th>Total</th><th>Parcelas</th><th>Valor</th><th>Previsto</th><th>Cartão</th><th>Categoria</th><th>Parcelas Restantes</th><th>Restante</th><th>Ação</th></tr></thead>
+<tbody id="installmentsBody"></tbody></table></div>
+<p class="empty-state" id="emptyInstallments">Nenhuma compra parcelada.</p>
+</div>
+
+  <div class="panel"><h2>📄 Contas Fixas</h2>
+  <form id="fixedForm" autocomplete="off">
+  <div class="form-row">
+  <div class="form-group"><label>Nome</label><input type="text" id="fixedName" required></div>
+  <div class="form-group"><label>Valor Mensal</label><input type="number" id="fixedAmount" step="0.01" required></div>
+  </div>
+  <div class="form-row">
+  <div class="form-group"><label>Dia Vencimento</label><input type="number" id="fixedDueDay" min="1" max="31" placeholder="5"></div>
+  <div class="form-group"><label>Categoria</label><select id="fixedCategory"></select></div>
+  </div>
+  <div class="form-row">
+  <div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="fixedActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
+  </div>
+  <button type="submit" class="btn-primary">Adicionar Conta</button>
+  </form>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;margin-bottom:0.5rem">
+    <span style="font-size:0.82rem;color:var(--text-secondary)">Contas cadastradas</span>
+    <button class="btn-sm" onclick="openFixedModal()">📋 Ver Contas do Mês</button>
+  </div>
+  <div class="table-wrapper"><table><thead><tr><th>Nome</th><th>Valor</th><th>Vencimento</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
+  <tbody id="fixedBody"></tbody></table></div>
+  <p class="empty-state" id="emptyFixed">Nenhuma conta fixa.</p>
+  </div>
+
+  <div class="panel"><h2>🔄 Compras Recorrentes</h2>
+<form id="recurringForm" autocomplete="off">
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" id="recName" required></div>
+<div class="form-group"><label>Valor Mensal</label><input type="number" id="recAmount" step="0.01" required></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Cartão</label><select id="recCard"></select></div>
+<div class="form-group"><label>Categoria</label><select id="recCategory"></select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Data de Início</label><input type="date" id="recStartDate" required></div>
+<div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="recActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
+</div>
+<button type="submit" class="btn-primary">Adicionar Recorrente</button>
+</form>
+<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Valor</th><th>Cartão</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
+<tbody id="recBody"></tbody></table></div>
+<p class="empty-state" id="emptyRec">Nenhuma compra recorrente.</p>
+</div>
+
+  <div class="panel"><h2>⚠️ Dívidas</h2>
+  <form id="debtForm" autocomplete="off">
+  <div class="form-row">
+  <div class="form-group"><label>Nome</label><input type="text" id="debtName" required></div>
+  <div class="form-group"><label>Credor</label><input type="text" id="debtCreditor"></div>
+  </div>
+  <div class="form-row">
+  <div class="form-group"><label>Valor Original</label><input type="number" id="debtOriginal" step="0.01" required></div>
+  <div class="form-group"><label>Valor Atual</label><input type="number" id="debtCurrent" step="0.01" required></div>
+  </div>
+  <div class="form-group"><label>Observações</label><input type="text" id="debtNotes"></div>
+  <button type="submit" class="btn-primary">Adicionar Dívida</button>
+  </form>
+  <div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Credor</th><th>Original</th><th>Atual</th><th>Ação</th></tr></thead>
+  <tbody id="debtsBody"></tbody></table></div>
+  <p class="empty-state" id="emptyDebts">Nenhuma dívida.</p>
+<div style="margin-top:1.5rem">
+<h3 style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem">📜 Histórico de Pagamentos</h3>
+<div class="table-wrapper"><table><thead><tr><th>Dívida</th><th>Data</th><th>Valor</th></tr></thead>
+<tbody id="debtPaymentsBody"></tbody></table></div>
+<p class="empty-state" id="emptyDebtPayments">Nenhum pagamento registrado.</p>
+</div>
+</div>
+</div>
+</section>
+
+<div class="modal-overlay" id="invoiceModal" onclick="if(event.target===this)closeInvoiceModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>💳 Fatura - <span id="invoiceCardName"></span></h2>
+      <button class="btn-sm" onclick="closeInvoiceModal()">✕</button>
+    </div>
+    <div class="modal-subheader" id="invoiceCardInfo"></div>
+    <div class="modal-body" id="invoiceModalBody"></div>
+  </div>
+</div>
+
+  <div class="modal-overlay" id="projectedModal" onclick="if(event.target===this)closeModal('projectedModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>📈 Projeção de Saldo — Próximos 12 Meses</h2>
+        <button class="btn-sm" onclick="closeModal('projectedModal')">✕</button>
+      </div>
+      <div class="modal-subheader" id="projectedInfo"></div>
+      <div class="modal-body" id="projectedBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="monthExpenseModal" onclick="if(event.target===this)closeModal('monthExpenseModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>📉 Despesas do Mês</h2>
+        <button class="btn-sm" onclick="closeModal('monthExpenseModal')">✕</button>
+      </div>
+      <div class="modal-subheader" id="monthExpenseInfo"></div>
+      <div class="modal-body" id="monthExpenseBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="futureInstallmentsModal" onclick="if(event.target===this)closeModal('futureInstallmentsModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>📅 Compromissos Futuros por Mês</h2>
+        <button class="btn-sm" onclick="closeModal('futureInstallmentsModal')">✕</button>
+      </div>
+      <div class="modal-subheader" id="futureInstallmentsInfo"></div>
+      <div class="modal-body" id="futureInstallmentsBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="fixedModal" onclick="if(event.target===this)closeModal('fixedModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>📄 Contas Fixas — <span id="fixedModalMonth"></span></h2>
+        <button class="btn-sm" onclick="closeModal('fixedModal')">✕</button>
+      </div>
+      <div class="modal-subheader" id="fixedModalInfo"></div>
+      <div class="modal-body" id="fixedModalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editTxModal" onclick="if(event.target===this)closeModal('editTxModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>✏️ Editar Transação</h2>
+        <button class="btn-sm" onclick="closeModal('editTxModal')">✕</button>
+      </div>
+      <form id="editTxForm" autocomplete="off">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group"><label>Valor</label><input type="number" id="editTxAmount" step="0.01" required></div>
+            <div class="form-group"><label>Categoria</label><select id="editTxCategory" required></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Data</label><input type="date" id="editTxDate" required></div>
+            <div class="form-group"><label>Tipo</label><select id="editTxType"><option value="income">Receita</option><option value="expense">Despesa</option></select></div>
+          </div>
+          <div class="form-group"><label>Descrição</label><input type="text" id="editTxDesc" placeholder="Descrição original"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('editTxModal')">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
