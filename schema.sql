@@ -5,14 +5,16 @@
 CREATE TABLE IF NOT EXISTS categories (
   name TEXT PRIMARY KEY,
   "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
-  color TEXT NOT NULL DEFAULT '#3b82f6'
+  color TEXT NOT NULL DEFAULT '#3b82f6',
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Commands
 CREATE TABLE IF NOT EXISTS commands (
   keyword TEXT PRIMARY KEY,
   category TEXT NOT NULL REFERENCES categories(name) ON DELETE CASCADE,
-  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense'))
+  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Cards
@@ -24,7 +26,8 @@ CREATE TABLE IF NOT EXISTS cards (
   "availableLimit" NUMERIC(12,2) DEFAULT 0,
   "closingDay" INTEGER,
   "dueDay" INTEGER,
-  color TEXT DEFAULT '#3b82f6'
+  color TEXT DEFAULT '#3b82f6',
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Transactions
@@ -54,7 +57,8 @@ CREATE TABLE IF NOT EXISTS installments (
   cardId INTEGER REFERENCES cards(id) ON DELETE SET NULL,
   category TEXT NOT NULL,
   notes TEXT,
-  paidInstallments INTEGER DEFAULT 0
+  paidInstallments INTEGER DEFAULT 0,
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Debts
@@ -64,7 +68,8 @@ CREATE TABLE IF NOT EXISTS debts (
   creditor TEXT,
   originalAmount NUMERIC(12,2) NOT NULL,
   currentAmount NUMERIC(12,2) NOT NULL,
-  notes TEXT
+  notes TEXT,
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Debt Payments
@@ -118,7 +123,8 @@ CREATE TABLE IF NOT EXISTS fixedPayments (
 -- Budgets
 CREATE TABLE IF NOT EXISTS budgets (
   category TEXT PRIMARY KEY,
-  "limit" NUMERIC(12,2) NOT NULL
+  "limit" NUMERIC(12,2) NOT NULL,
+  createdAt TEXT DEFAULT (now()::text)
 );
 
 -- Indexes for performance
