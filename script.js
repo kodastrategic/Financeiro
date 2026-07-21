@@ -668,7 +668,8 @@ function setupCommandForm(){
     const category=$('#cmdCategory').value,cat=await db.categories.get(category);
     if(!cat)return showNotification('Categoria inválida.');
     if(!keyword)return showNotification('Digite um comando.');
-    if(await db.commands.get(keyword))return showNotification(`/${keyword} já existe.`);
+    const all=await db.commands.toArray();
+    if(all.find(c=>c.keyword===keyword))return showNotification(`/${keyword} já existe.`);
     await db.commands.add({keyword,category,type:cat.type});
     $('#cmdKeyword').value='';await loadCommandsTable();showNotification(`/${keyword} criado!`);scheduleBackup();
   });
