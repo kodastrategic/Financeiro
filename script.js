@@ -205,7 +205,7 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
   }catch(e){console.error('find command error',e);return{success:false,message:`Erro ao buscar "${keyword}": ${e.message}`};}
   if(!cmd)return{success:false,message:`Comando "${keyword}" não encontrado. Crie na aba Comandos.`};
   const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
-  try{await db.transactions.add(tx);}catch(e){console.error('add tx error',e);return{success:false,message:`Erro ao salvar: ${e.message}`};}
+  try{tx.id=await db.transactions.add(tx);}catch(e){console.error('add tx error',e);return{success:false,message:`Erro ao salvar: ${e.message}`};}
   await refreshDashboard();scheduleBackup();
   const all=await db.transactions.toArray();const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return{success:true,tx,balance};
