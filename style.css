@@ -68,7 +68,7 @@
 .boxes .box > div:nth-child(1) { --top: 0; --left: 0; }
 .boxes .box > div:nth-child(2) { --background: #145af2; --right: 0; --rotateY: 90deg; }
 .boxes .box > div:nth-child(3) { --background: #447cf5; --rotateX: -90deg; }
-.boxes .box > div:nth-child(4) { --background: #DBE3F4; --top: 0; --left: 0; --translateZ: calc(var(--size) * 3 * -1); }
+.boxes .box > div:nth-child(4) { --background: #1a1d23; --top: 0; --left: 0; --translateZ: calc(var(--size) * 3 * -1); }
 @keyframes box1 { 0%,50% { transform: translate(100%, 0); } 100% { transform: translate(200%, 0); } }
 @keyframes box2 { 0% { transform: translate(0, 100%); } 50% { transform: translate(0, 0); } 100% { transform: translate(100%, 0); } }
 @keyframes box3 { 0%,50% { transform: translate(100%, 100%); } 100% { transform: translate(0, 100%); } }
@@ -922,6 +922,24 @@ td code { color: var(--accent); font-size: 0.85rem; }
   .filter-bar {
     flex-wrap: wrap;
   }
+  /* Cards / Bills / Debts mobile */
+  #cards .form-inline input,
+  #bills .form-inline input,
+  #debts .form-inline input,
+  #cards .form-inline select,
+  #bills .form-inline select,
+  #debts .form-inline select {
+    flex:1 1 100% !important;
+    min-width:0 !important;
+  }
+  #cards .form-inline,
+  #bills .form-inline,
+  #debts .form-inline {
+    flex-direction:column;
+  }
+  .cards-layout .panel .form-row {
+    grid-template-columns:1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -960,4 +978,7 @@ td code { color: var(--accent); font-size: 0.85rem; }
   .chat-input-area input {
     font-size: 16px;
   }
+  #cards, #bills, #debts { padding: 0.75rem; }
+  #cards .panel, #bills .panel, #debts .panel { padding: 0.75rem; }
+  .cards-layout { gap: 0.75rem; }
 }
