@@ -678,9 +678,9 @@ function setupCommandForm(){
       await db.commands.add({keyword,category,type:cat.type});
       // Verifica se realmente salvou
       const check=await db.commands.toArray();
-      if(!check.find(c=>c.keyword===keyword))return showNotification(`ERRO: "${keyword}" não foi salvo no Supabase. Verifique as permissões (RLS) da tabela "commands".`);
+      if(!check.find(c=>c.keyword===keyword))return showNotification(`ERRO: /${keyword} não foi salvo. Abra o console (F12) e veja os logs.`);
       $('#cmdKeyword').value='';await loadCommandsTable();showNotification(`/${keyword} criado!`);scheduleBackup();
-    }catch(e){showNotification('Erro ao salvar: '+e.message);}
+    }catch(e){showNotification('Erro: '+e.message);console.error(e);}
   });
 }
 async function deleteCommand(k){if(!confirm(`Excluir /${k}?`))return;await db.commands.delete(k);await loadCommandsTable();showNotification('Excluído.');scheduleBackup();}
@@ -705,8 +705,10 @@ function setupCategoryForm(){
       editingCategory=null;document.querySelector('#categoryForm .btn-primary').textContent='Criar';showNotification('Categoria atualizada!');scheduleBackup();
     }else{
       if(await db.categories.get(name))return showNotification(`"${name}" já existe.`);
-      await db.categories.add({name,type,color});
-      showNotification(`Categoria "${name}" criada!`);scheduleBackup();
+      try{
+        await db.categories.add({name,type,color});
+        showNotification(`Categoria "${name}" criada!`);scheduleBackup();
+      }catch(e){showNotification('Erro: '+e.message);console.error(e);return;}
     }
     $('#catName').value='';cc.value=pickColor('income');ct.value='income';
     await loadCategoriesTable();await loadCommandsTable();await loadCategoriesSelect();await refreshDashboard();
