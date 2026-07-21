@@ -31,7 +31,7 @@ async function exportBackupToFile(){
 document.addEventListener('DOMContentLoaded',async()=>{
   try{
     await seedData(); await loadCategoriesSelect(); await loadCommandsTable(); await loadCategoriesTable();
-    setupTabNavigation(); setupChat(); setupCommandForm(); setupCategoryForm();
+    setupTabNavigation(); setupChat(); setupCommandForm(); setupCategoryForm(); setupCreateCmdForm();
     setupCardForm(); setupInstallmentForm(); setupDebtForm(); setupRecurringForm(); setupFixedForm();
     setupEditTxForm(); setupBudgetForm();
     await loadCardSelect(); await loadFixedTable(); await loadBudgetsTable();
@@ -152,7 +152,11 @@ async function processCommand(text){
   }
   const result=await executeCommand(parsed.keyword,parsed.amount,text,parsed.date);
   if(!result.success){
-    addChatMessage(`<strong>${result.message}</strong>`,'msg-error');
+    if(result.error==='not_found'){
+      showCreateCommandModal(result.keyword,result.amount,result.date);
+    }else{
+      addChatMessage(`<strong>${result.message}</strong>`,'msg-error');
+    }
     addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
     return;
   }
@@ -195,8 +199,7 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
       if(cat){
         cmd={keyword:cat.name,category:cat.name,type:cat.type};
       }else{
-        const names=all.map(c=>c.keyword).join(', ');
-        return{success:false,message:`Comando "${keyword}" não encontrado. Disponíveis: ${names||'(nenhum)'}`};
+        return{success:false,error:'not_found',keyword,amount,date:cmdDate||todayLocal(),message:`"${keyword}" não encontrado.`};
       }
     }
   }catch(e){console.error('find command error',e);return{success:false,message:`Erro ao buscar "${keyword}": ${e.message}`};}
@@ -1306,6 +1309,51 @@ async function toggleAllFixed(monthKey){
     await refreshDashboard();await renderChatHistory();scrollChatToTop();scheduleBackup();
     showNotification(`✅ ${unpaid.length} conta${unpaid.length>1?'s':''} paga${unpaid.length>1?'s':''}!`);
   }
+}
+
+// ===== CREATE COMMAND MODAL =====
+async function showCreateCommandModal(keyword,amount,date){
+  const cats=await db.categories.toArray();
+  sel.innerHTML='<option value="">Criar nova com este nome</option>'+cats.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+  $('#createCmdKeyword').value=keyword;
+  $('#createCmdAmount').value=formatCurrency(amount);
+  $('#createCmdName').textContent=keyword;
+  $('#createCmdForm').dataset.keyword=keyword;
+  $('#createCmdForm').dataset.amount=amount;
+  $('#createCmdForm').dataset.date=date;
+  $('#createCmdModal').classList.add('show');
+}
+function setupCreateCmdForm(){
+  $('#createCmdForm').addEventListener('submit',async(e)=>{
+    e.preventDefault();
+    const keyword=$('#createCmdForm').dataset.keyword;
+    const amount=parseFloat($('#createCmdForm').dataset.amount);
+    const date=$('#createCmdForm').dataset.date;
+    const type=$('#createCmdType').value;
+    let category=$('#createCmdCategory').value;
+    try{
+      if(!category){
+        // Cria categoria com o nome do comando
+        if(!await db.categories.get(keyword)){
+          await db.categories.add({name:keyword,type,color:pickColor(type)});
+          await loadCategoriesTable();await loadCategoriesSelect();
+        }
+        category=keyword;
+      }
+      // Cria comando
+      await db.commands.add({keyword,category,type});
+      await loadCommandsTable();
+      // Executa transação
+      const tx={type,category,description:`/${keyword} ${amount}`,amount,date,command:keyword,createdAt:new Date().toISOString()};
+      await db.transactions.add(tx);
+      closeModal('createCmdModal');
+      await refreshDashboard();scheduleBackup();
+      const all=await db.transactions.toArray();
+      const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+      addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="msg-tx-header"><span>${type==='income'?'📈':'📉'} <strong>${type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${category}</span></div><div class="msg-tx-amount ${type}">${type==='income'?'+':'-'} ${formatCurrency(amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(date)}</div></div></div>`,'msg-tx '+type);
+      showNotification(`/${keyword} criado e executado!`);
+    }catch(e){showNotification('Erro: '+e.message);console.error(e);}
+  });
 }
 
 // ===== MODAL PROJECTED =====
