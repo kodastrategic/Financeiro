@@ -924,22 +924,28 @@ td code { color: var(--accent); font-size: 0.85rem; }
     flex-wrap: wrap;
   }
   /* Cards / Bills / Debts mobile */
-  #cards .form-inline input,
-  #bills .form-inline input,
-  #debts .form-inline input,
-  #cards .form-inline select,
-  #bills .form-inline select,
-  #debts .form-inline select {
-    flex:1 1 100% !important;
+  #cards, #bills, #debts { padding:0.75rem; }
+  .cards-layout { gap:0.75rem; }
+  .cards-layout .panel {
+    padding:0.85rem !important;
+    align-self:stretch !important;
+    width:100%;
+  }
+  .cards-layout .panel .form-row { grid-template-columns:1fr; }
+  .cards-layout .form-inline {
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+  }
+  .cards-layout .form-inline input,
+  .cards-layout .form-inline select {
+    flex:1 1 auto !important;
+    width:100% !important;
     min-width:0 !important;
+    max-width:100% !important;
   }
-  #cards .form-inline,
-  #bills .form-inline,
-  #debts .form-inline {
-    flex-direction:column;
-  }
-  .cards-layout .panel .form-row {
-    grid-template-columns:1fr;
+  .cards-layout .form-inline input[type="color"] {
+    width:100% !important;
+    height:44px !important;
   }
 }
 
@@ -979,7 +985,7 @@ td code { color: var(--accent); font-size: 0.85rem; }
   .chat-input-area input {
     font-size: 16px;
   }
-  #cards, #bills, #debts { padding: 0.75rem; }
-  #cards .panel, #bills .panel, #debts .panel { padding: 0.75rem; }
-  .cards-layout { gap: 0.75rem; }
+  #cards, #bills, #debts { padding: 0.5rem; }
+  #cards .panel, #bills .panel, #debts .panel { padding: 0.75rem !important; }
+  .cards-layout { gap: 0.5rem; }
 }
