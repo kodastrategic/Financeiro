@@ -102,8 +102,9 @@
       if (copy.id && !PK_STR.has(this._name)) delete copy.id;
       const { data, error } = await this._client.from(this._name).insert(copy).select();
       if (error) throw error;
-      const row = camelKeys(data && data[0]);
-      if (!row) return Date.now();
+      const raw = Array.isArray(data) ? data[0] : data;
+      const row = camelKeys(raw);
+      if (!row) return PK_STR.has(this._name) ? copy[pk(this._name)] : (copy.id||Date.now());
       return PK_STR.has(this._name) ? row[pk(this._name)] : row.id;
     }
 
