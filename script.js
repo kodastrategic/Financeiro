@@ -177,7 +177,10 @@ function parseCommand(text){
 
 async function executeCommand(keyword,amount,rawText,cmdDate){
   let cmd;
-  try{cmd=await db.commands.get(keyword);}catch(e){console.error('get command error',e);return{success:false,message:`Erro ao buscar /${keyword}: ${e.message}`};}
+  try{
+    const all=await db.commands.toArray();
+    cmd=all.find(c=>c.keyword.toLowerCase()===keyword.toLowerCase());
+  }catch(e){console.error('find command error',e);return{success:false,message:`Erro ao buscar "${keyword}": ${e.message}`};}
   if(!cmd)return{success:false,message:`Comando "${keyword}" não encontrado. Crie na aba Comandos.`};
   const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
   try{await db.transactions.add(tx);}catch(e){console.error('add tx error',e);return{success:false,message:`Erro ao salvar: ${e.message}`};}
