@@ -1345,12 +1345,12 @@ function setupCreateCmdForm(){
       await loadCommandsTable();
       // Executa transação
       const tx={type,category,description:`/${keyword} ${amount}`,amount,date,command:keyword,createdAt:new Date().toISOString()};
-      await db.transactions.add(tx);
+      const txId=await db.transactions.add(tx);
       closeModal('createCmdModal');
       await refreshDashboard();scheduleBackup();
       const all=await db.transactions.toArray();
       const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
-      addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="msg-tx-header"><span>${type==='income'?'📈':'📉'} <strong>${type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${category}</span></div><div class="msg-tx-amount ${type}">${type==='income'?'+':'-'} ${formatCurrency(amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(date)}</div></div></div>`,'msg-tx '+type);
+      addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="msg-tx-header"><span>${type==='income'?'📈':'📉'} <strong>${type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${category}</span></div><div class="msg-tx-amount ${type}">${type==='income'?'+':'-'} ${formatCurrency(amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${txId})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${txId})" title="Excluir">✕</button></div>`,'msg-tx '+type);
       showNotification(`/${keyword} criado e executado!`);
     }catch(e){showNotification('Erro: '+e.message);console.error(e);}
   });

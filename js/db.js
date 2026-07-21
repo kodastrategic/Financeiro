@@ -105,14 +105,18 @@
         'Content-Type': 'application/json',
         'apikey': window.SUPABASE_CONFIG.anonKey,
         'Authorization': 'Bearer ' + window.SUPABASE_CONFIG.anonKey,
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=representation'
       };
       const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(copy) });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`insert ${this._name}: HTTP ${res.status} — ${text}`);
       }
-      return PK_STR.has(this._name) ? copy[pk(this._name)] : (copy.id||Date.now());
+      const text = await res.text();
+      const rows = JSON.parse(text);
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (row && row[pk(this._name)] !== undefined) return row[pk(this._name)];
+      return PK_STR.has(this._name) ? copy[pk(this._name)] : Date.now();
     }
 
     async get(id) {
