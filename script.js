@@ -153,7 +153,7 @@ async function processCommand(text){
   const result=await executeCommand(parsed.keyword,parsed.amount,text,parsed.date);
   if(!result.success){
     if(result.error==='not_found'){
-      showCreateCommandModal(result.keyword,result.amount,result.date);
+      try{await showCreateCommandModal(result.keyword,result.amount,result.date);}catch(e){console.error('modal error',e);}
     }else{
       addChatMessage(`<strong>${result.message}</strong>`,'msg-error');
     }
@@ -1314,7 +1314,7 @@ async function toggleAllFixed(monthKey){
 // ===== CREATE COMMAND MODAL =====
 async function showCreateCommandModal(keyword,amount,date){
   const cats=await db.categories.toArray();
-  sel.innerHTML='<option value="">Criar nova com este nome</option>'+cats.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+  const sel=$('#createCmdCategory');
   $('#createCmdKeyword').value=keyword;
   $('#createCmdAmount').value=formatCurrency(amount);
   $('#createCmdName').textContent=keyword;
