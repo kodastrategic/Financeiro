@@ -100,12 +100,9 @@
     async add(item) {
       const copy = lowerKeys({ ...item }, this._name);
       if (copy.id && !PK_STR.has(this._name)) delete copy.id;
-      const { data, error } = await this._client.from(this._name).insert(copy).select();
+      const { error } = await this._client.from(this._name).insert(copy);
       if (error) throw error;
-      const raw = Array.isArray(data) ? data[0] : data;
-      const row = camelKeys(raw);
-      if (!row) return PK_STR.has(this._name) ? copy[pk(this._name)] : (copy.id||Date.now());
-      return PK_STR.has(this._name) ? row[pk(this._name)] : row.id;
+      return PK_STR.has(this._name) ? copy[pk(this._name)] : (copy.id||Date.now());
     }
 
     async get(id) {
@@ -115,8 +112,8 @@
     }
 
     async put(item) {
-      const { data, error } = await this._client.from(this._name).upsert(lowerKeys(item, this._name)).select();
-      if (error) throw error; return camelKeys((data && data[0]) || item);
+      const { error } = await this._client.from(this._name).upsert(lowerKeys(item, this._name));
+      if (error) throw error; return item;
     }
 
     async delete(id) {
@@ -152,8 +149,8 @@
         if (copy.id && !PK_STR.has(this._name)) delete copy.id;
         return copy;
       });
-      const { data, error } = await this._client.from(this._name).insert(valid).select();
-      if (error) throw error; return camelKeys(data);
+      const { error } = await this._client.from(this._name).insert(valid);
+      if (error) throw error;
     }
 
     where(fieldOrObj) {
