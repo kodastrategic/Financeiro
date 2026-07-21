@@ -49,10 +49,17 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
 async function seedData(){
   const cc=await db.categories.count();
-  if(cc===0){await db.categories.bulkAdd(SEED_CATEGORIES);await db.commands.bulkAdd(SEED_COMMANDS);}
-  else{
+  if(cc===0){
+    await db.categories.bulkAdd(SEED_CATEGORIES);
+  } else {
     const all=await db.categories.toArray();
-    for(const c of all){if(!c.color){const s=SEED_CATEGORIES.find(x=>x.name===c.name);c.color=s?.color||getDefaultColor(c.name);await db.categories.put(c);}}
+    for(const c of all){
+      if(!c.color){const s=SEED_CATEGORIES.find(x=>x.name===c.name);c.color=s?.color||getDefaultColor(c.name);await db.categories.put(c);}
+    }
+  }
+  const cmdCount=await db.commands.count();
+  if(cmdCount===0){
+    await db.commands.bulkAdd(SEED_COMMANDS);
   }
 }
 
