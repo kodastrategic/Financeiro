@@ -144,7 +144,7 @@ async function processCommand(text){
   }
   const result=await executeCommand(parsed.keyword,parsed.amount,text,parsed.date);
   if(!result.success){
-    addChatMessage(`<strong>${result.message}</strong><br><span style="font-size:0.82rem">Crie o comando na aba Comandos</span>`,'msg-error');
+    addChatMessage(`<strong>${result.message}</strong>`,'msg-error');
     addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
     return;
   }
@@ -176,10 +176,12 @@ function parseCommand(text){
 }
 
 async function executeCommand(keyword,amount,rawText,cmdDate){
-  const cmd=await db.commands.get(keyword);
-  if(!cmd)return{success:false,message:`Comando /${keyword} não encontrado.`};
+  let cmd;
+  try{cmd=await db.commands.get(keyword);}catch(e){console.error('get command error',e);return{success:false,message:`Erro ao buscar /${keyword}: ${e.message}`};}
+  if(!cmd)return{success:false,message:`Comando "${keyword}" não encontrado. Crie na aba Comandos.`};
   const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
-  delete tx.id;await db.transactions.add(tx);await refreshDashboard();scheduleBackup();
+  try{await db.transactions.add(tx);}catch(e){console.error('add tx error',e);return{success:false,message:`Erro ao salvar: ${e.message}`};}
+  await refreshDashboard();scheduleBackup();
   const all=await db.transactions.toArray();const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return{success:true,tx,balance};
 }
