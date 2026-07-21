@@ -30,8 +30,8 @@ function scheduleBackup(){}
 async function exportBackupToFile(){
   const all=await db.transactions.toArray(),cmds=await db.commands.toArray(),cats=await db.categories.toArray(),
     cards=await db.cards.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray(),
-    dps=await db.debtPayments.toArray(),ips=await db.invoicePayments.toArray(),recs=await db.recurrings.toArray(),
-    fes=await db.fixedExpenses.toArray(),fps=await db.fixedPayments.toArray(),bgs=await db.budgets.toArray();
+    dps=await db.debtpayments.toArray(),ips=await db.invoicepayments.toArray(),recs=await db.recurrings.toArray(),
+    fes=await db.fixedexpenses.toArray(),fps=await db.fixedpayments.toArray(),bgs=await db.budgets.toArray();
   const data={version:7,exportedAt:new Date().toISOString(),data:{transactions:all,commands:cmds,categories:cats,cards,installments:insts,debts,debtPayments:dps,invoicePayments:ips,recurrings:recs,fixedExpenses:fes,fixedPayments:fps,budgets:bgs}};
   downloadFile(JSON.stringify(data,null,2),`financeapp_autobackup_${formatDateTime(new Date())}.json`,'application/json');
 }
@@ -248,7 +248,7 @@ async function renderSummaryCards(tx,cards,insts,debts){
   const projected=balance+avgIncome-avgExpense-(monthlyCommitments[0]||0);
   const totalLimit=cards.reduce((s,c)=>s+(c.limit||0),0);
   const allRecs=await db.recurrings.toArray();
-  const allFixed=await db.fixedExpenses.toArray();
+  const allFixed=await db.fixedexpenses.toArray();
   const usedLimit=cards.reduce((s,c)=>{
     const cardInsts=insts.filter(i=>i.cardId===c.id&&i.paidInstallments<i.installmentCount);
     const instUsed=cardInsts.reduce((sum,i)=>sum+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
@@ -338,7 +338,7 @@ async function getFutureMonthly(insts){
       if(key>=recStart)map[key]+=rec.amount;
     }
   }
-  const fixedAll=await db.fixedExpenses.toArray();
+  const fixedAll=await db.fixedexpenses.toArray();
   for(const f of fixedAll){
     if(!f.active)continue;
     for(const key of Object.keys(map))map[key]+=f.amount;
@@ -457,7 +457,7 @@ async function renderChartFutureCommitments(insts,debts){
       if(key>=recStart&&map[label])map[label].recurrings+=rec.amount;
     }
   }
-  const fixedAll=await db.fixedExpenses.toArray();
+  const fixedAll=await db.fixedexpenses.toArray();
   for(const f of fixedAll){
     if(!f.active)continue;
     for(const label of months){
@@ -769,7 +769,7 @@ async function getCardInvoiceMonths(cardId){
   const insts=await db.installments.where('cardId').equals(cardId).toArray();
   const allRecs=await db.recurrings.where('cardId').equals(cardId).toArray();
   const recs=allRecs.filter(r=>r.active);
-  const payments=await db.invoicePayments.where('cardId').equals(cardId).toArray();
+  const payments=await db.invoicepayments.where('cardId').equals(cardId).toArray();
   const paidMonths=new Set(payments.map(p=>p.monthKey));
   const months={};
   let minKey=null,maxKey=null;
@@ -874,7 +874,7 @@ async function renderInvoiceModal(cardId){
 async function toggleInvoiceMonth(cardId,monthKey){
   const card=await db.cards.get(cardId);
   if(!card)return;
-  const existing=await db.invoicePayments.where({cardId,monthKey}).first();
+  const existing=await db.invoicepayments.where({cardId,monthKey}).first();
   if(existing){
     if(!confirm(`Desmarcar pagamento de "${card.name}" para ${monthKey.replace('-','/')}?\n\nAs transações serão removidas do chat e o saldo será restituído.`))return;
     const months=await getCardInvoiceMonths(cardId);
@@ -892,7 +892,7 @@ async function toggleInvoiceMonth(cardId,monthKey){
       }
     }
     await db.transactions.where('invoicePaymentId').equals(existing.id).delete();
-    await db.invoicePayments.delete(existing.id);
+    await db.invoicepayments.delete(existing.id);
     await loadInstallmentsTable();
     await renderInvoiceModal(cardId);
     await loadCardsTable();
@@ -907,7 +907,7 @@ async function toggleInvoiceMonth(cardId,monthKey){
   if(!month)return;
   const totalUnpaid=month.items.filter(i=>!i.paid).reduce((s,i)=>s+i.value,0);
   if(!confirm(`Pagar fatura de "${card.name}" para ${monthKey.replace('-','/')}? Total: ${formatCurrency(totalUnpaid)}`))return;
-  const ipId=await db.invoicePayments.add({cardId,monthKey,createdAt:new Date().toISOString()});
+  const ipId=await db.invoicepayments.add({cardId,monthKey,createdAt:new Date().toISOString()});
   let paidCount=0;
   for(const item of month.items){
     if(item.paid)continue;
@@ -1058,7 +1058,7 @@ async function payDebt(id){
   const amount=parseFloat(amountStr.replace(',','.'));
   if(isNaN(amount)||amount<=0)return showNotification('Valor inválido.');
   if(amount>debt.currentAmount)return showNotification('Valor maior que o devido.');
-  await db.debtPayments.add({debtId:id,amount,date:todayLocal(),createdAt:new Date().toISOString()});
+  await db.debtpayments.add({debtId:id,amount,date:todayLocal(),createdAt:new Date().toISOString()});
   debt.currentAmount-=amount;
   const quitou=debt.currentAmount<=0;
   if(quitou){debt.currentAmount=0;}
@@ -1069,7 +1069,7 @@ async function payDebt(id){
   showNotification(`Pagamento de ${formatCurrency(amount)} registrado!`);
 }
 async function loadDebtPaymentsTable(){
-  const payments=await db.debtPayments.toArray(),debts=await db.debts.toArray();
+  const payments=await db.debtpayments.toArray(),debts=await db.debts.toArray();
   payments.sort((a,b)=>b.date.localeCompare(a.date)||(b.id-a.id));
   const tb=$('#debtPaymentsBody'),em=$('#emptyDebtPayments');
   if(!payments.length){tb.innerHTML='';em.style.display='block';return;}
@@ -1124,25 +1124,25 @@ function setupFixedForm(){
     const dueDay=parseInt($('#fixedDueDay').value)||null,category=$('#fixedCategory').value;
     const active=$('#fixedActive').checked;
     if(!name||!amount)return showNotification('Preencha nome e valor.');
-    await db.fixedExpenses.add({name,amount,dueDay,category,active,createdAt:new Date().toISOString()});
+    await db.fixedexpenses.add({name,amount,dueDay,category,active,createdAt:new Date().toISOString()});
     $('#fixedForm').reset();$('#fixedActive').checked=true;
     await loadFixedTable();showNotification(`"${name}" adicionado!`);scheduleBackup();
   });
 }
 async function loadFixedTable(){
-  const exps=await db.fixedExpenses.toArray(),tb=$('#fixedBody'),em=$('#emptyFixed');
+  const exps=await db.fixedexpenses.toArray(),tb=$('#fixedBody'),em=$('#emptyFixed');
   if(!exps.length){tb.innerHTML='';em.style.display='block';return;}
   em.style.display='none';
   tb.innerHTML=exps.map(e=>`<tr><td>${escapeHtml(e.name)}</td><td>${formatCurrency(e.amount)}</td><td>${e.dueDay?'Dia '+e.dueDay:'-'}</td><td>${escapeHtml(e.category)}</td><td><span class="${e.active?'badge-income':'badge-warning'}">${e.active?'Ativo':'Pausado'}</span></td><td><button class="btn-sm" onclick="toggleFixed(${e.id})">${e.active?'Pausar':'Ativar'}</button><button class="btn-sm danger" onclick="deleteFixed(${e.id})">Excluir</button></td></tr>`).join('');
 }
 async function toggleFixed(id){
-  const e=await db.fixedExpenses.get(id);if(!e)return;
-  e.active=!e.active;await db.fixedExpenses.put(e);
+  const e=await db.fixedexpenses.get(id);if(!e)return;
+  e.active=!e.active;await db.fixedexpenses.put(e);
   await loadFixedTable();showNotification(e.active?'Ativado.':'Pausado.');scheduleBackup();
 }
 async function deleteFixed(id){
   if(!confirm('Excluir conta fixa?'))return;
-  await db.fixedExpenses.delete(id);await loadFixedTable();showNotification('Excluída.');scheduleBackup();
+  await db.fixedexpenses.delete(id);await loadFixedTable();showNotification('Excluída.');scheduleBackup();
 }
 
 // ===== MODAL FIXED =====
@@ -1155,7 +1155,7 @@ async function openFixedModal(monthKey){
   const monthLabel=`${meses[currentDate.getMonth()]}/${y}`;
   $('#fixedModalMonth').textContent=monthLabel;
 
-  const exps=await db.fixedExpenses.toArray();
+  const exps=await db.fixedexpenses.toArray();
   const active=exps.filter(e=>e.active);
   if(!active.length){
     renderFixedNav(monthKey);
@@ -1164,7 +1164,7 @@ async function openFixedModal(monthKey){
     $('#fixedModal').classList.add('show');return;
   }
 
-  const payments=await db.fixedPayments.where('monthKey').equals(monthKey).toArray();
+  const payments=await db.fixedpayments.where('monthKey').equals(monthKey).toArray();
   const paidIds=new Set(payments.map(p=>p.expenseId));
   const total=active.reduce((s,e)=>s+e.amount,0);
   const paidTotal=active.filter(e=>paidIds.has(e.id)).reduce((s,e)=>s+e.amount,0);
@@ -1202,11 +1202,11 @@ function renderFixedNav(monthKey){
   $('#fixedModalMonth').innerHTML=`<button class="btn-sm" onclick="openFixedModal('${prevKey}')">◀</button> ${$('#fixedModalMonth').textContent} <button class="btn-sm" onclick="openFixedModal('${nextKey}')">▶</button>`;
 }
 async function toggleFixedExpense(expenseId,monthKey){
-  const exp=await db.fixedExpenses.get(expenseId);
+  const exp=await db.fixedexpenses.get(expenseId);
   if(!exp)return;
-  const existing=await db.fixedPayments.where({expenseId,monthKey}).first();
+  const existing=await db.fixedpayments.where({expenseId,monthKey}).first();
   if(existing){
-    await db.fixedPayments.delete(existing.id);
+    await db.fixedpayments.delete(existing.id);
     const txs=await db.transactions.filter(t=>t.fixedExpenseId===expenseId&&t.fixedMonthKey===monthKey).toArray();
     for(const t of txs)await db.transactions.delete(t.id);
     await openFixedModal(monthKey);
@@ -1214,7 +1214,7 @@ async function toggleFixedExpense(expenseId,monthKey){
     showNotification(`"${exp.name}" desmarcado.`);
   }else{
     if(!confirm(`Pagar "${exp.name}" (${formatCurrency(exp.amount)}) referente a ${monthKey.replace('-','/')}?`))return;
-    await db.fixedPayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
+    await db.fixedpayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
     const tx={type:'expense',category:exp.category||'Contas Fixas',description:`${exp.name} (${monthKey.replace('-','/')})`,amount:exp.amount,date:todayLocal(),command:'contafixa',fixedExpenseId:expenseId,fixedMonthKey:monthKey,createdAt:new Date().toISOString()};
     await db.transactions.add(tx);
     await openFixedModal(monthKey);
@@ -1223,14 +1223,14 @@ async function toggleFixedExpense(expenseId,monthKey){
   }
 }
 async function toggleAllFixed(monthKey){
-  const exps=await db.fixedExpenses.toArray();
+  const exps=await db.fixedexpenses.toArray();
   const active=exps.filter(e=>e.active);
-  const payments=await db.fixedPayments.where('monthKey').equals(monthKey).toArray();
+  const payments=await db.fixedpayments.where('monthKey').equals(monthKey).toArray();
   const paidIds=new Set(payments.map(p=>p.expenseId));
   const allPaid=active.every(e=>paidIds.has(e.id));
   if(allPaid){
     if(!confirm(`Desmarcar TODAS as contas de ${monthKey.replace('-','/')}?\n\nAs transações serão removidas e o saldo será restituído.`))return;
-    for(const p of payments)await db.fixedPayments.delete(p.id);
+    for(const p of payments)await db.fixedpayments.delete(p.id);
     for(const e of active){
       const txs=await db.transactions.filter(t=>t.fixedExpenseId===e.id&&t.fixedMonthKey===monthKey).toArray();
       for(const t of txs)await db.transactions.delete(t.id);
@@ -1243,7 +1243,7 @@ async function toggleAllFixed(monthKey){
     const total=unpaid.reduce((s,e)=>s+e.amount,0);
     if(!confirm(`Pagar ${unpaid.length} conta${unpaid.length>1?'s':''} de ${monthKey.replace('-','/')}? Total: ${formatCurrency(total)}`))return;
     for(const e of unpaid){
-      await db.fixedPayments.add({expenseId:e.id,monthKey,createdAt:new Date().toISOString()});
+      await db.fixedpayments.add({expenseId:e.id,monthKey,createdAt:new Date().toISOString()});
       const tx={type:'expense',category:e.category||'Contas Fixas',description:`${e.name} (${monthKey.replace('-','/')})`,amount:e.amount,date:todayLocal(),command:'contafixa',fixedExpenseId:e.id,fixedMonthKey:monthKey,createdAt:new Date().toISOString()};
       await db.transactions.add(tx);
     }
@@ -1326,7 +1326,7 @@ async function openFutureInstallmentsModal(filter){
   }
 
   const hasRecs=allRecs.some(r=>r.active);
-  const fixedAll=await db.fixedExpenses.toArray();
+  const fixedAll=await db.fixedexpenses.toArray();
   const hasFixed=fixedAll.some(f=>f.active);
   const maxHorizon=hasRecs||hasFixed;
   if(maxHorizon){
@@ -1495,7 +1495,7 @@ async function clearAllData(){
   if(!confirm('🗑️ Limpar TODOS os dados?\n\nEsta ação não pode ser desfeita.'))return;
   if(!confirm('Tem certeza?'))return;
   await db.transactions.clear();await db.commands.clear();await db.categories.clear();
-  await db.cards.clear();await db.installments.clear();await db.debts.clear();await db.debtPayments.clear();await db.invoicePayments.clear();await db.recurrings.clear();await db.fixedExpenses.clear();await db.fixedPayments.clear();await db.budgets.clear();
+  await db.cards.clear();await db.installments.clear();await db.debts.clear();await db.debtpayments.clear();await db.invoicepayments.clear();await db.recurrings.clear();await db.fixedexpenses.clear();await db.fixedpayments.clear();await db.budgets.clear();
   await seedData();
   await loadCategoriesSelect();await loadCommandsTable();await loadCategoriesTable();
   await loadCardsTable();await loadInstallmentsTable();await loadDebtsTable();await loadRecurringsTable();await loadFixedTable();
@@ -1504,7 +1504,7 @@ async function clearAllData(){
 
 async function exportData(){
   const transactions=await db.transactions.toArray(),commands=await db.commands.toArray(),categories=await db.categories.toArray();
-  const cards=await db.cards.toArray(),installments=await db.installments.toArray(),debts=await db.debts.toArray(),debtPayments=await db.debtPayments.toArray(),invoicePayments=await db.invoicePayments.toArray(),recurrings=await db.recurrings.toArray(),fixedExpenses=await db.fixedExpenses.toArray(),fixedPayments=await db.fixedPayments.toArray();
+  const cards=await db.cards.toArray(),installments=await db.installments.toArray(),debts=await db.debts.toArray(),debtPayments=await db.debtpayments.toArray(),invoicePayments=await db.invoicepayments.toArray(),recurrings=await db.recurrings.toArray(),fixedExpenses=await db.fixedexpenses.toArray(),fixedPayments=await db.fixedpayments.toArray();
   const budgets=await db.budgets.toArray();
   const data={version:7,exportedAt:new Date().toISOString(),data:{transactions,commands,categories,cards,installments,debts,debtPayments,invoicePayments,recurrings,fixedExpenses,fixedPayments,budgets}};
   downloadFile(JSON.stringify(data,null,2),`financeapp_backup_${formatDateTime(new Date())}.json`,'application/json');
@@ -1519,16 +1519,16 @@ async function importData(event){
     if(!confirm(`Importar dados? Os dados atuais serão substituídos.`))return;
     const{transactions,commands,categories,cards,installments,debts,debtPayments,invoicePayments,recurrings,fixedExpenses,fixedPayments,budgets}=parsed.data;
     await db.transactions.clear();await db.commands.clear();await db.categories.clear();
-    await db.cards.clear();await db.installments.clear();await db.debts.clear();await db.debtPayments.clear();await db.invoicePayments.clear();await db.recurrings.clear();await db.fixedExpenses.clear();await db.fixedPayments.clear();await db.budgets.clear();
+    await db.cards.clear();await db.installments.clear();await db.debts.clear();await db.debtpayments.clear();await db.invoicepayments.clear();await db.recurrings.clear();await db.fixedexpenses.clear();await db.fixedpayments.clear();await db.budgets.clear();
     if(categories?.length)await db.categories.bulkAdd(categories);
     if(commands?.length)await db.commands.bulkAdd(commands);
     if(cards?.length)await db.cards.bulkAdd(cards);
     if(installments?.length){for(const i of installments){delete i.id;await db.installments.add(i);}}
     if(debts?.length){for(const d of debts){delete d.id;await db.debts.add(d);}}
-    if(invoicePayments?.length){for(const p of invoicePayments){delete p.id;await db.invoicePayments.add(p);}}
+    if(invoicePayments?.length){for(const p of invoicePayments){delete p.id;await db.invoicepayments.add(p);}}
     if(recurrings?.length){for(const r of recurrings){delete r.id;await db.recurrings.add(r);}}
-    if(fixedExpenses?.length){for(const e of fixedExpenses){delete e.id;await db.fixedExpenses.add(e);}}
-    if(fixedPayments?.length){for(const p of fixedPayments){delete p.id;await db.fixedPayments.add(p);}}
+    if(fixedExpenses?.length){for(const e of fixedExpenses){delete e.id;await db.fixedexpenses.add(e);}}
+    if(fixedPayments?.length){for(const p of fixedPayments){delete p.id;await db.fixedpayments.add(p);}}
     if(budgets?.length){for(const b of budgets){await db.budgets.put(b);}}
     if(transactions?.length){for(const t of transactions){delete t.id;await db.transactions.add(t);}}
     $('#importInput').value='';

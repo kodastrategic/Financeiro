@@ -1,140 +1,128 @@
 -- ===== SCHEMA SUPABASE — FinanceApp v2 =====
--- Execute este script no SQL Editor do seu projeto Supabase
+-- Todas as colunas em lowercase para evitar problemas com case-sensitive
 
--- Categories
 CREATE TABLE IF NOT EXISTS categories (
   name TEXT PRIMARY KEY,
-  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
   color TEXT NOT NULL DEFAULT '#3b82f6',
-  createdAt TEXT DEFAULT (now()::text)
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Commands
 CREATE TABLE IF NOT EXISTS commands (
   keyword TEXT PRIMARY KEY,
   category TEXT NOT NULL REFERENCES categories(name) ON DELETE CASCADE,
-  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
-  createdAt TEXT DEFAULT (now()::text)
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Cards
 CREATE TABLE IF NOT EXISTS cards (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   bank TEXT,
-  "limit" NUMERIC(12,2) DEFAULT 0,
-  "availableLimit" NUMERIC(12,2) DEFAULT 0,
-  "closingDay" INTEGER,
-  "dueDay" INTEGER,
+  cardlimit NUMERIC(12,2) DEFAULT 0,
+  availablelimit NUMERIC(12,2) DEFAULT 0,
+  closingday INTEGER,
+  dueday INTEGER,
   color TEXT DEFAULT '#3b82f6',
-  createdAt TEXT DEFAULT (now()::text)
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Transactions
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
-  "type" TEXT NOT NULL CHECK ("type" IN ('income', 'expense')),
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
   category TEXT NOT NULL,
   description TEXT,
   amount NUMERIC(12,2) NOT NULL,
-  "date" TEXT NOT NULL,
+  txdate TEXT NOT NULL,
   command TEXT,
-  invoicePaymentId INTEGER,
-  fixedExpenseId INTEGER,
-  fixedMonthKey TEXT,
-  createdAt TEXT DEFAULT (now()::text)
+  invoicepaymentid INTEGER,
+  fixedexpenseid INTEGER,
+  fixedmonthkey TEXT,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Installments
 CREATE TABLE IF NOT EXISTS installments (
   id SERIAL PRIMARY KEY,
   description TEXT NOT NULL,
-  totalAmount NUMERIC(12,2) NOT NULL,
-  installmentCount INTEGER NOT NULL,
-  installmentValue NUMERIC(12,2) NOT NULL,
-  purchaseDate TEXT NOT NULL,
-  firstInstallmentDate TEXT NOT NULL,
-  cardId INTEGER REFERENCES cards(id) ON DELETE SET NULL,
+  totalamount NUMERIC(12,2) NOT NULL,
+  installmentcount INTEGER NOT NULL,
+  installmentvalue NUMERIC(12,2) NOT NULL,
+  purchasedate TEXT NOT NULL,
+  firstinstallmentdate TEXT NOT NULL,
+  cardid INTEGER REFERENCES cards(id) ON DELETE SET NULL,
   category TEXT NOT NULL,
   notes TEXT,
-  paidInstallments INTEGER DEFAULT 0,
-  createdAt TEXT DEFAULT (now()::text)
+  paidinstallments INTEGER DEFAULT 0,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Debts
 CREATE TABLE IF NOT EXISTS debts (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   creditor TEXT,
-  originalAmount NUMERIC(12,2) NOT NULL,
-  currentAmount NUMERIC(12,2) NOT NULL,
+  originalamount NUMERIC(12,2) NOT NULL,
+  currentamount NUMERIC(12,2) NOT NULL,
   notes TEXT,
-  createdAt TEXT DEFAULT (now()::text)
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Debt Payments
-CREATE TABLE IF NOT EXISTS debtPayments (
+CREATE TABLE IF NOT EXISTS debtpayments (
   id SERIAL PRIMARY KEY,
-  debtId INTEGER REFERENCES debts(id) ON DELETE CASCADE,
+  debtid INTEGER REFERENCES debts(id) ON DELETE CASCADE,
   amount NUMERIC(12,2) NOT NULL,
-  date TEXT NOT NULL,
-  createdAt TEXT DEFAULT (now()::text)
+  txdate TEXT NOT NULL,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Invoice Payments
-CREATE TABLE IF NOT EXISTS invoicePayments (
+CREATE TABLE IF NOT EXISTS invoicepayments (
   id SERIAL PRIMARY KEY,
-  cardId INTEGER REFERENCES cards(id) ON DELETE CASCADE,
-  monthKey TEXT NOT NULL,
-  createdAt TEXT DEFAULT (now()::text)
+  cardid INTEGER REFERENCES cards(id) ON DELETE CASCADE,
+  monthkey TEXT NOT NULL,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Recurrings
 CREATE TABLE IF NOT EXISTS recurrings (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
-  cardId INTEGER REFERENCES cards(id) ON DELETE SET NULL,
+  cardid INTEGER REFERENCES cards(id) ON DELETE SET NULL,
   category TEXT NOT NULL,
-  startDate TEXT NOT NULL,
+  startdate TEXT NOT NULL,
   active BOOLEAN DEFAULT true,
-  createdAt TEXT DEFAULT (now()::text)
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Fixed Expenses
-CREATE TABLE IF NOT EXISTS fixedExpenses (
+CREATE TABLE IF NOT EXISTS fixedexpenses (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
-  dueDay INTEGER,
+  dueday INTEGER,
   category TEXT NOT NULL,
   active BOOLEAN DEFAULT true,
-  createdAt TEXT DEFAULT (now()::text)
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Fixed Payments
-CREATE TABLE IF NOT EXISTS fixedPayments (
+CREATE TABLE IF NOT EXISTS fixedpayments (
   id SERIAL PRIMARY KEY,
-  expenseId INTEGER REFERENCES fixedExpenses(id) ON DELETE CASCADE,
-  monthKey TEXT NOT NULL,
-  createdAt TEXT DEFAULT (now()::text)
+  expenseid INTEGER REFERENCES fixedexpenses(id) ON DELETE CASCADE,
+  monthkey TEXT NOT NULL,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Budgets
 CREATE TABLE IF NOT EXISTS budgets (
   category TEXT PRIMARY KEY,
-  "limit" NUMERIC(12,2) NOT NULL,
-  createdAt TEXT DEFAULT (now()::text)
+  budgetlimit NUMERIC(12,2) NOT NULL,
+  createdat TEXT DEFAULT (now()::text)
 );
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions("type");
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions("date");
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(txdate);
 CREATE INDEX IF NOT EXISTS idx_transactions_command ON transactions(command);
-CREATE INDEX IF NOT EXISTS idx_transactions_invoice ON transactions(invoicePaymentId);
-CREATE INDEX IF NOT EXISTS idx_installments_card ON installments(cardId);
+CREATE INDEX IF NOT EXISTS idx_transactions_invoice ON transactions(invoicepaymentid);
+CREATE INDEX IF NOT EXISTS idx_installments_card ON installments(cardid);
 CREATE INDEX IF NOT EXISTS idx_installments_category ON installments(category);
-CREATE INDEX IF NOT EXISTS idx_invoicePayments_card ON invoicePayments(cardId);
-CREATE INDEX IF NOT EXISTS idx_fixedPayments_month ON fixedPayments(monthKey);
-CREATE INDEX IF NOT EXISTS idx_debtPayments_debt ON debtPayments(debtId);
+CREATE INDEX IF NOT EXISTS idx_invoicepayments_card ON invoicepayments(cardid);
+CREATE INDEX IF NOT EXISTS idx_fixedpayments_month ON fixedpayments(monthkey);
+CREATE INDEX IF NOT EXISTS idx_debtpayments_debt ON debtpayments(debtid);
