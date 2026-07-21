@@ -180,6 +180,10 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
   try{
     const all=await db.commands.toArray();
     cmd=all.find(c=>c.keyword.toLowerCase()===keyword.toLowerCase());
+    if(!cmd){
+      const names=all.map(c=>c.keyword).join(', ');
+      return{success:false,message:`Comando "${keyword}" não encontrado. Disponíveis: ${names||'(nenhum)'}`};
+    }
   }catch(e){console.error('find command error',e);return{success:false,message:`Erro ao buscar "${keyword}": ${e.message}`};}
   if(!cmd)return{success:false,message:`Comando "${keyword}" não encontrado. Crie na aba Comandos.`};
   const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
