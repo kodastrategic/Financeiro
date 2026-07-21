@@ -90,12 +90,28 @@ async function sendMessage(){
 }
 async function showAutocomplete(input,box){
   const text=input.value;
-  if(!text.startsWith('/')){box.style.display='none';return;}
-  const partial=text.slice(1).toLowerCase();
   const cmds=await db.commands.toArray();
-  const filtered=cmds.filter(c=>c.keyword.includes(partial)).slice(0,8);
+  if(!cmds.length){box.style.display='none';return;}
+  let filtered, prefix;
+  if(text.startsWith('/')){
+    prefix='/';
+    const partial=text.slice(1).toLowerCase();
+    filtered=cmds.filter(c=>c.keyword.includes(partial));
+  }else if(text.length>0){
+    prefix='';
+    const partial=text.toLowerCase();
+    filtered=cmds.filter(c=>c.keyword.includes(partial));
+  }else{
+    // Vazio — mostra os mais usados
+    prefix='';
+    const all=await db.transactions.toArray();
+    const counts={};for(const t of all)if(t.command)counts[t.command]=(counts[t.command]||0)+1;
+    cmds.sort((a,b)=>(counts[b.keyword]||0)-(counts[a.keyword]||0));
+    filtered=cmds;
+  }
+  filtered=filtered.slice(0,8);
   if(!filtered.length||text.includes(' ')){box.style.display='none';return;}
-  box.innerHTML=filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('/${c.keyword} ')">/${c.keyword} <span style="color:${c.type==='income'?'#22c55e':'#ef4444'};font-size:0.75rem">${c.category}</span></div>`).join('');
+  box.innerHTML=filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('${prefix}${c.keyword} ')">${prefix}${c.keyword} <span style="color:${c.type==='income'?'#22c55e':'#ef4444'};font-size:0.75rem">${c.category}</span></div>`).join('');
   box.style.display='block';
 }
 function selectAutocompleteItem(val){
@@ -103,7 +119,7 @@ function selectAutocompleteItem(val){
 }
 function selectAutocomplete(input,box){
   const sel=box.querySelector('.auto-item-sel')||box.firstElementChild;
-  if(sel&&sel.dataset.keyword)input.value='/'+sel.dataset.keyword+' ';
+  if(sel&&sel.dataset.keyword)input.value=sel.dataset.keyword+' ';
   hideAutocomplete(box);
 }
 function hideAutocomplete(b){b.style.display='none';}
@@ -122,11 +138,11 @@ async function markInstallmentPaid(id,count){
 async function processCommand(text){
   const parsed=parseCommand(text);
   if(!parsed){
-    addChatMessage(`Formato inválido. Use: <code>/comando valor</code>`,'msg-error');
+    addChatMessage(`Formato inválido. Use: <code>comando valor</code> ou <code>comando valor DD/MM</code>`,'msg-error');
     addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
     return;
   }
-  const result=await executeCommand(parsed.keyword,parsed.amount,text);
+  const result=await executeCommand(parsed.keyword,parsed.amount,text,parsed.date);
   if(!result.success){
     addChatMessage(`<strong>${result.message}</strong><br><span style="font-size:0.82rem">Crie o comando na aba Comandos</span>`,'msg-error');
     addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
@@ -138,15 +154,31 @@ async function processCommand(text){
 }
 
 function parseCommand(text){
-  text=text.trim();const m=text.match(/^\/(\w+)\s+([\d.,]+)$/);
-  if(!m)return null;const keyword=m[1].toLowerCase(),amount=parseFloat(m[2].replace(',','.'));
-  if(isNaN(amount)||amount<=0)return null;return{keyword,amount};
+  text=text.trim();
+  // /comando valor DD/MM  ou  /comando valor (hoje)
+  const m=text.match(/^\/?(\w+)\s+([\d.,]+)(?:\s+(\d{1,2})\/?(\d{1,2})?)?$/);
+  if(!m)return null;
+  const keyword=m[1].toLowerCase(),amount=parseFloat(m[2].replace(',','.'));
+  if(isNaN(amount)||amount<=0)return null;
+  let date=todayLocal();
+  if(m[3]){
+    let day,month;
+    if(m[4]){day=parseInt(m[3]);month=parseInt(m[4]);}
+    else{const s=m[3].padStart(4,'0');day=parseInt(s.slice(0,2));month=parseInt(s.slice(2,4));}
+    if(day>=1&&day<=31&&month>=1&&month<=12){
+      const now=new Date();let year=now.getFullYear();
+      const parsed=new Date(year,month-1,day);
+      if(parsed>now)year--;
+      date=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
+  }
+  return{keyword,amount,date};
 }
 
-async function executeCommand(keyword,amount,rawText){
+async function executeCommand(keyword,amount,rawText,cmdDate){
   const cmd=await db.commands.get(keyword);
   if(!cmd)return{success:false,message:`Comando /${keyword} não encontrado.`};
-  const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:todayLocal(),command:keyword,createdAt:new Date().toISOString()};
+  const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
   delete tx.id;await db.transactions.add(tx);await refreshDashboard();scheduleBackup();
   const all=await db.transactions.toArray();const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return{success:true,tx,balance};
