@@ -1,23 +1,15 @@
 const SEED_CATEGORIES = [
+  // Income — cool tones (blues, greens, purples, teals, indigos)
   {name:'Salário',type:'income',color:'#3b82f6'},{name:'Freelance',type:'income',color:'#8b5cf6'},
-  {name:'Investimentos',type:'income',color:'#22c55e'},{name:'Vendas',type:'income',color:'#f59e0b'},
-  {name:'Prêmio',type:'income',color:'#ec4899'},{name:'Outras Receitas',type:'income',color:'#6366f1'},
+  {name:'Investimentos',type:'income',color:'#22c55e'},{name:'Vendas',type:'income',color:'#06b6d4'},
+  {name:'Prêmio',type:'income',color:'#6366f1'},{name:'Outras Receitas',type:'income',color:'#14b8a6'},
+  // Expense — warm tones (reds, oranges, yellows, pinks, ambers)
   {name:'Alimentação',type:'expense',color:'#ef4444'},{name:'Contas Fixas',type:'expense',color:'#f97316'},
-  {name:'Mercado',type:'expense',color:'#eab308'},{name:'Transporte',type:'expense',color:'#14b8a6'},
-  {name:'Lazer',type:'expense',color:'#ec4899'},{name:'Saúde',type:'expense',color:'#06b6d4'},
-  {name:'Educação',type:'expense',color:'#8b5cf6'},{name:'Moradia',type:'expense',color:'#d946ef'},
-  {name:'Assinaturas',type:'expense',color:'#64748b'},{name:'Impostos',type:'expense',color:'#dc2626'},
-  {name:'Emergência',type:'expense',color:'#f59e0b'},{name:'Outras Despesas',type:'expense',color:'#84cc16'}
-];
-const SEED_COMMANDS = [
-  {keyword:'entrada',category:'Outras Receitas',type:'income'},{keyword:'saida',category:'Outras Despesas',type:'expense'},
-  {keyword:'salario',category:'Salário',type:'income'},{keyword:'freela',category:'Freelance',type:'income'},
-  {keyword:'invest',category:'Investimentos',type:'income'},{keyword:'mercado',category:'Mercado',type:'expense'},
-  {keyword:'combustivel',category:'Transporte',type:'expense'},{keyword:'transporte',category:'Transporte',type:'expense'},
-  {keyword:'lazer',category:'Lazer',type:'expense'},{keyword:'saude',category:'Saúde',type:'expense'},
-  {keyword:'educacao',category:'Educação',type:'expense'},{keyword:'alimentacao',category:'Alimentação',type:'expense'},
-  {keyword:'contas',category:'Contas Fixas',type:'expense'},{keyword:'moradia',category:'Moradia',type:'expense'},
-  {keyword:'internet',category:'Assinaturas',type:'expense'},{keyword:'assinaturas',category:'Assinaturas',type:'expense'}
+  {name:'Mercado',type:'expense',color:'#eab308'},{name:'Transporte',type:'expense',color:'#ec4899'},
+  {name:'Lazer',type:'expense',color:'#dc2626'},{name:'Saúde',type:'expense',color:'#f59e0b'},
+  {name:'Educação',type:'expense',color:'#d946ef'},{name:'Moradia',type:'expense',color:'#fb923c'},
+  {name:'Assinaturas',type:'expense',color:'#facc15'},{name:'Impostos',type:'expense',color:'#f43f5e'},
+  {name:'Emergência',type:'expense',color:'#fdba74'},{name:'Outras Despesas',type:'expense',color:'#e11d48'}
 ];
 // db é fornecido pelo supabase-config.js + js/db.js
 
@@ -55,12 +47,8 @@ async function seedData(){
   } else {
     const all=await db.categories.toArray();
     for(const c of all){
-      if(!c.color){const s=SEED_CATEGORIES.find(x=>x.name===c.name);c.color=s?.color||getDefaultColor(c.name);await db.categories.put(c);}
+      if(!c.color){const s=SEED_CATEGORIES.find(x=>x.name===c.name);c.color=s?.color||pickColor(c.type);await db.categories.put(c);}
     }
-  }
-  const cmdCount=await db.commands.count();
-  if(cmdCount===0){
-    await db.commands.bulkAdd(SEED_COMMANDS);
   }
 }
 
@@ -395,14 +383,14 @@ function renderChartExpenseCategory(tx,insts){
       }
     }
   }
-  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>getDefaultColor(l));
+  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
 }
 
 function renderChartIncomeCategory(tx){
   const groups={};tx.filter(t=>t.type==='income').forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
-  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>getDefaultColor(l));
+  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
 }
@@ -499,7 +487,7 @@ function renderChartTopExpense(tx, monthFilter){
   const filtered=monthFilter==='current'?tx.filter(t=>t.type==='expense'&&t.date.startsWith(todayLocal().substring(0,7))):monthFilter==='all'?tx.filter(t=>t.type==='expense'):tx.filter(t=>t.type==='expense'&&t.date.startsWith(monthFilter));
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
-  const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>getDefaultColor(l));
+  const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartTopExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
   makeChart('chartTopExpense',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
@@ -508,7 +496,7 @@ function renderChartTopIncome(tx, monthFilter){
   const filtered=monthFilter==='current'?tx.filter(t=>t.type==='income'&&t.date.startsWith(todayLocal().substring(0,7))):monthFilter==='all'?tx.filter(t=>t.type==='income'):tx.filter(t=>t.type==='income'&&t.date.startsWith(monthFilter));
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
-  const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>getDefaultColor(l));
+  const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartTopIncome',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
   makeChart('chartTopIncome',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
@@ -619,10 +607,11 @@ async function loadCommandsTable(){
 }
 async function loadCategoriesTable(){
   const cats=await db.categories.toArray();
+  window._allCategories=cats;
   const tb=$('#categoriesBody'),em=$('#emptyCategories');
   if(!cats.length){tb.innerHTML='';em.style.display='block';return;}
   em.style.display='none';
-  tb.innerHTML=cats.map(c=>`<tr><td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${c.color||getDefaultColor(c.name)};border:2px solid rgba(255,255,255,0.08)"></span></td><td>${escapeHtml(c.name)}</td><td><span class="badge-${c.type}">${c.type==='income'?'Receita':'Despesa'}</span></td><td><button class="btn-sm" onclick="editCategory('${escapeHtml(c.name)}')">Editar</button><button class="btn-sm danger" onclick="deleteCategory('${escapeHtml(c.name)}')">Excluir</button></td></tr>`).join('');
+  tb.innerHTML=cats.map(c=>`<tr><td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${c.color||pickColor(c.type)};border:2px solid rgba(255,255,255,0.08)"></span></td><td>${escapeHtml(c.name)}</td><td><span class="badge-${c.type}">${c.type==='income'?'Receita':'Despesa'}</span></td><td><button class="btn-sm" onclick="editCategory('${escapeHtml(c.name)}')">Editar</button><button class="btn-sm danger" onclick="deleteCategory('${escapeHtml(c.name)}')">Excluir</button></td></tr>`).join('');
 }
 async function loadCategoriesSelect(){
   const cats=await db.categories.toArray();
@@ -651,7 +640,7 @@ async function deleteCommand(k){if(!confirm(`Excluir /${k}?`))return;await db.co
 
 function setupCategoryForm(){
   const ct=$('#catType'),cc=$('#catColor');
-  ct.addEventListener('change',()=>{cc.value=ct.value==='income'?'#22c55e':'#ef4444';});
+  ct.addEventListener('change',()=>{cc.value=pickColor(ct.value);});
   $('#categoryForm').addEventListener('submit',async(e)=>{
     e.preventDefault();
     const name=$('#catName').value.trim(),type=ct.value,color=cc.value;
@@ -670,17 +659,15 @@ function setupCategoryForm(){
     }else{
       if(await db.categories.get(name))return showNotification(`"${name}" já existe.`);
       await db.categories.add({name,type,color});
-      const kw=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      await db.commands.add({keyword:kw,category:name,type});
       showNotification(`Categoria "${name}" criada!`);scheduleBackup();
     }
-    $('#catName').value='';cc.value=type==='income'?'#22c55e':'#ef4444';ct.value='income';
+    $('#catName').value='';cc.value=pickColor('income');ct.value='income';
     await loadCategoriesTable();await loadCommandsTable();await loadCategoriesSelect();await refreshDashboard();
   });
 }
 async function editCategory(name){
   const c=await db.categories.get(name);if(!c)return;
-  editingCategory=name;$('#catName').value=c.name;$('#catType').value=c.type;$('#catColor').value=c.color||getDefaultColor(c.name);
+  editingCategory=name;$('#catName').value=c.name;$('#catType').value=c.type;$('#catColor').value=c.color||pickColor(c.type);
   $('#catName').focus();document.querySelector('#categoryForm .btn-primary').textContent='Salvar';
 }
 async function deleteCategory(name){
@@ -1567,11 +1554,23 @@ async function generateAndSaveReport(){
 function downloadFile(content,f,mime){const b=new Blob([content],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=f;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);}
 
 // ===== UTILITIES =====
+const COLORS_INCOME = ['#3b82f6','#22c55e','#8b5cf6','#06b6d4','#6366f1','#14b8a6','#a855f7','#0ea5e9','#10b981','#818cf8','#2dd4bf','#60a5fa','#34d399','#c084fc'];
+const COLORS_EXPENSE = ['#ef4444','#f97316','#eab308','#ec4899','#dc2626','#f59e0b','#d946ef','#fb923c','#facc15','#f43f5e','#fdba74','#e11d48','#f87171','#c026d3'];
+function pickColor(type){
+  const used=new Set();
+  const existing=window._allCategories||[];
+  for(const c of existing)if(c.color)used.add(c.color);
+  const pool=type==='income'?COLORS_INCOME:COLORS_EXPENSE;
+  for(const c of pool)if(!used.has(c))return c;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function catColor(name){
+  const c=window._allCategories?.find(x=>x.name===name);
+  return c?.color||pickColor(c?.type||'expense');
+}
 function getDefaultColor(name){
   const s=SEED_CATEGORIES.find(c=>c.name===name);if(s)return s.color;
-  const p=['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#d946ef','#eab308','#64748b'];
-  let h=0;for(let i=0;i<name.length;i++)h=((h<<5)-h)+name.charCodeAt(i);
-  return p[Math.abs(h)%p.length];
+  return pickColor('expense');
 }
 function formatCurrency(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
 function formatDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
