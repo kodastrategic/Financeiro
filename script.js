@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     setupEditTxForm(); setupBudgetForm();
     await loadCardSelect(); await loadFixedTable(); await loadBudgetsTable();
     await refreshDashboard(); setupChartGlow(); setupTopChartFilters(); renderChatHistory(); scrollChatToTop(); $('#chatInput').focus();
+    $('#loadingScreen').classList.add('hidden');
   }catch(e){console.error(e);showNotification('Erro: '+e.message);}
 });
 
