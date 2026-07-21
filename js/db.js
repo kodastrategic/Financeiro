@@ -24,11 +24,25 @@
     originalamount:'originalAmount', currentamount:'currentAmount'
   };
 
-  function lowerKeys(obj) {
-    if (Array.isArray(obj)) return obj.map(lowerKeys);
+  // Reverse: JS camelCase → DB lowercase column
+  const CK = {};
+  for (const [db, js] of Object.entries(KC)) CK[js] = db;
+
+  function dbKey(key) { return CK[key] || key.toLowerCase(); }
+
+  function lowerKeys(obj, table) {
+    if (Array.isArray(obj)) return obj.map(item => lowerKeys(item, table));
     if (obj && typeof obj === 'object' && !(obj instanceof Date)) {
       const r = {};
-      for (const [k, v] of Object.entries(obj)) r[k.toLowerCase()] = v;
+      for (const [k, v] of Object.entries(obj)) {
+        if (k === 'limit') {
+          if (table === 'cards') r['cardlimit'] = v;
+          else if (table === 'budgets') r['budgetlimit'] = v;
+          else r[k.toLowerCase()] = v;
+        } else {
+          r[CK[k] || k.toLowerCase()] = v;
+        }
+      }
       return r;
     }
     return obj;
@@ -64,11 +78,11 @@
       }
       let query = this._client.from(this._table).select('*');
       for (const f of this._filters) {
-        const field = f.field.toLowerCase();
+        const field = dbKey(f.field);
         if (f.type === 'eq') query = query.eq(field, f.value);
         else if (f.type === 'like') query = query.like(field, f.value);
       }
-      if (this._orderField) query = query.order(this._orderField.toLowerCase(), { ascending: this._orderAsc });
+      if (this._orderField) query = query.order(dbKey(this._orderField), { ascending: this._orderAsc });
       const { data, error } = await query;
       if (error) throw error; return camelKeys(data || []);
     }
@@ -84,7 +98,7 @@
     constructor(client, name) { this._client = client; this._name = name; }
 
     async add(item) {
-      const copy = lowerKeys({ ...item });
+      const copy = lowerKeys({ ...item }, this._name);
       if (copy.id && !PK_STR.has(this._name)) delete copy.id;
       const { data, error } = await this._client.from(this._name).insert(copy).select();
       if (error) throw error;
@@ -100,7 +114,7 @@
     }
 
     async put(item) {
-      const { data, error } = await this._client.from(this._name).upsert(lowerKeys(item)).select();
+      const { data, error } = await this._client.from(this._name).upsert(lowerKeys(item, this._name)).select();
       if (error) throw error; return camelKeys((data && data[0]) || item);
     }
 
@@ -133,7 +147,7 @@
 
     async bulkAdd(items) {
       const valid = items.map(item => {
-        const copy = lowerKeys({ ...item });
+        const copy = lowerKeys({ ...item }, this._name);
         if (copy.id && !PK_STR.has(this._name)) delete copy.id;
         return copy;
       });
@@ -144,9 +158,9 @@
     where(fieldOrObj) {
       const q = new TableQuery(this._client, this._name);
       if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
-        for (const [k, v] of Object.entries(fieldOrObj)) q._filters.push({ type: 'eq', field: k.toLowerCase(), value: v });
+        for (const [k, v] of Object.entries(fieldOrObj)) q._filters.push({ type: 'eq', field: dbKey(k), value: v });
       } else {
-        q._filters.push({ type: 'pending', field: fieldOrObj });
+        q._filters.push({ type: 'pending', field: dbKey(fieldOrObj) });
       }
       return q;
     }

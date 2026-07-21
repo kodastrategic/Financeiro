@@ -92,9 +92,10 @@ function setupChat(){
   });
   send.addEventListener('click',()=>{hideAutocomplete(box);sendMessage();});
 }
-function sendMessage(){
+async function sendMessage(){
   const input=$('#chatInput'),text=input.value.trim();
-  if(!text)return;processCommand(text);input.value='';hideAutocomplete($('#autocompleteBox'));
+  if(!text)return;input.value='';hideAutocomplete($('#autocompleteBox'));
+  try{await processCommand(text);}catch(e){addChatMessage(`<strong>Erro:</strong> ${e.message||e}`,'msg-error');console.error(e);}
 }
 async function showAutocomplete(input,box){
   const text=input.value;
