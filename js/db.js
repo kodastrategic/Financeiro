@@ -170,14 +170,29 @@
     }
 
     async toArray() {
-      const { data, error } = await this._supabase.from(this._name).select('*').order('id', { ascending: true });
+      const pkey = this._pkey;
+      let query = this._supabase.from(this._name).select('*');
+      if (pkey === 'id') {
+        query = query.order('id', { ascending: true });
+      } else {
+        query = query.order(pkey, { ascending: true });
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     }
 
     async clear() {
-      const { error } = await this._supabase.from(this._name).delete().neq('id', 0);
-      if (error && error.code !== 'PGRST116') throw error;
+      const pkey = this._pkey;
+      if (pkey === 'id') {
+        const { error } = await this._supabase.from(this._name).delete().neq('id', 0);
+        if (error && error.code !== 'PGRST116') throw error;
+      } else {
+        const rows = await this.toArray();
+        for (const row of rows) {
+          await this._supabase.from(this._name).delete().eq(pkey, row[pkey]);
+        }
+      }
     }
 
     async count() {
