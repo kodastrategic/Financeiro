@@ -674,8 +674,13 @@ function setupCommandForm(){
     if(!keyword)return showNotification('Digite um comando.');
     const all=await db.commands.toArray();
     if(all.find(c=>c.keyword===keyword))return showNotification(`/${keyword} já existe.`);
-    await db.commands.add({keyword,category,type:cat.type});
-    $('#cmdKeyword').value='';await loadCommandsTable();showNotification(`/${keyword} criado!`);scheduleBackup();
+    try{
+      await db.commands.add({keyword,category,type:cat.type});
+      // Verifica se realmente salvou
+      const check=await db.commands.toArray();
+      if(!check.find(c=>c.keyword===keyword))return showNotification(`ERRO: "${keyword}" não foi salvo no Supabase. Verifique as permissões (RLS) da tabela "commands".`);
+      $('#cmdKeyword').value='';await loadCommandsTable();showNotification(`/${keyword} criado!`);scheduleBackup();
+    }catch(e){showNotification('Erro ao salvar: '+e.message);}
   });
 }
 async function deleteCommand(k){if(!confirm(`Excluir /${k}?`))return;await db.commands.delete(k);await loadCommandsTable();showNotification('Excluído.');scheduleBackup();}
