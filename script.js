@@ -305,9 +305,11 @@ async function renderChatBanner(){
     const insts=await db.installments.toArray();
     const recs=await db.recurrings.toArray();
     const fixedAll=await db.fixedexpenses.toArray();
+    const fixedPays=await db.fixedpayments.toArray();
     const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
     const now=new Date();
     const cur=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const paidSet=new Set(fixedPays.map(p=>p.expenseId+':'+p.monthKey));
     let total=0;
     // Parcelas com vencimento no mês atual
     for(const i of insts){
@@ -322,9 +324,9 @@ async function renderChatBanner(){
     for(const r of recs){
       if(r.active&&r.startDate&&r.startDate.substring(0,7)<=cur){total+=r.amount;}
     }
-    // Contas fixas ativas
+    // Contas fixas ativas (exceto as já pagas no mês)
     for(const f of fixedAll){
-      if(f.active){total+=f.amount;}
+      if(f.active&&!paidSet.has(f.id+':'+cur)){total+=f.amount;}
     }
     if(total<=0){el.style.display='none';return;}
     const monthName=MESES_EXT[now.getMonth()];
@@ -1586,11 +1588,12 @@ async function openFutureInstallmentsModal(filter){
 
   // Info bar
   const currentLabel=`${meses[parseInt(currentKey.split('-')[1])-1]}/${currentKey.split('-')[0]}`;
+  const isPaidFixed=i=>i.type==='fixed'&&paidFixed.has(i.id+':'+i.monthKey);
   const curMonthItems=(monthData[currentKey]?.items||[]);
-  const curTotal=curMonthItems.filter(i=>filter==='all'||i.type===filter).reduce((s,i)=>s+i.value,0);
+  const curTotal=curMonthItems.filter(i=>(filter==='all'||i.type===filter)&&!isPaidFixed(i)).reduce((s,i)=>s+i.value,0);
   let grandTotal=0,itemCount=0;
   for(const key of allMonths){
-    const items=filter==='all'?monthData[key].items:monthData[key].items.filter(i=>i.type===filter);
+    const items=(filter==='all'?monthData[key].items:monthData[key].items.filter(i=>i.type===filter)).filter(i=>!isPaidFixed(i));
     grandTotal+=items.reduce((s,i)=>s+i.value,0);
     itemCount+=items.length;
   }
@@ -1617,7 +1620,7 @@ async function openFutureInstallmentsModal(filter){
     let filtered=monthData[key].items;
     if(filter!=='all')filtered=filtered.filter(i=>i.type===filter);
     if(!filtered.length)continue;
-    const monthTotal=filtered.reduce((s,i)=>s+i.value,0);
+    const monthTotal=filtered.filter(i=>!isPaidFixed(i)).reduce((s,i)=>s+i.value,0);
     html+=`<div class="invoice-month">
       <div class="invoice-month-header">
         <span class="invoice-month-label">📆 ${monthLabel}</span>
