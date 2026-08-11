@@ -338,18 +338,18 @@ nav {
   font-size: 0.95rem;
 }
 .banner-btn {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: #f59e0b;
+  color: #1a1204;
+  border: 1px solid #f59e0b;
   border-radius: 6px;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.76rem;
-  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
-.banner-btn:hover { background: rgba(245, 158, 11, 0.28); }
+.banner-btn:hover { background: #fbbf24; border-color: #fbbf24; }
 .banner-income { color: var(--income); }
 .banner-expense { color: var(--expense); }
 
