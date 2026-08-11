@@ -1568,15 +1568,22 @@ async function openFutureInstallmentsModal(filter){
   }
 
   // Info bar
+  const currentLabel=`${meses[parseInt(currentKey.split('-')[1])-1]}/${currentKey.split('-')[0]}`;
+  const curMonthItems=(monthData[currentKey]?.items||[]);
+  const curTotal=curMonthItems.filter(i=>filter==='all'||i.type===filter).reduce((s,i)=>s+i.value,0);
   let grandTotal=0,itemCount=0;
-  for(const key of allMonths){grandTotal+=monthData[key].total;itemCount+=monthData[key].items.length;}
+  for(const key of allMonths){
+    const items=filter==='all'?monthData[key].items:monthData[key].items.filter(i=>i.type===filter);
+    grandTotal+=items.reduce((s,i)=>s+i.value,0);
+    itemCount+=items.length;
+  }
   const infoEl=$('#futureInstallmentsInfo');
   infoEl.innerHTML=`<div class="filter-bar">
     <button class="filter-btn ${filter==='all'?'active':''}" onclick="openFutureInstallmentsModal('all')">Todos</button>
     <button class="filter-btn ${filter==='installment'?'active':''}" onclick="openFutureInstallmentsModal('installment')">Parcelas</button>
     <button class="filter-btn ${filter==='recurring'?'active':''}" onclick="openFutureInstallmentsModal('recurring')">Recorrentes</button>
     <button class="filter-btn ${filter==='fixed'?'active':''}" onclick="openFutureInstallmentsModal('fixed')">Contas</button>
-    <span style="margin-left:auto;font-size:0.82rem;color:var(--text-secondary)">Total: ${formatCurrency(grandTotal)} · ${allMonths.length} mês${allMonths.length!==1?'es':''} · ${itemCount} item${itemCount!==1?'ns':''}</span>
+    <span style="margin-left:auto;font-size:0.82rem;color:var(--text-secondary)">Mês atual (<strong>${currentLabel}</strong>): <strong style="color:var(--expense)">${formatCurrency(curTotal)}</strong> · Horizonte (${allMonths.length} mês${allMonths.length!==1?'es':''}): ${formatCurrency(grandTotal)}</span>
   </div>`;
 
   // Render
