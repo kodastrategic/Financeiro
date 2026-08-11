@@ -13,7 +13,7 @@ const SEED_CATEGORIES = [
 ];
 // db é fornecido pelo supabase-config.js + js/db.js
 
-let charts={}, editingCategory=null, backupTimer=null, dashboardFilter='all';
+let charts={}, editingCategory=null, backupTimer=null, dashboardFilter='all', futureModalFilter='all';
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 const todayLocal=()=>new Date().toLocaleDateString('en-CA');
 const currentMonthKey=()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;};
@@ -185,24 +185,36 @@ async function processCommand(text){
 
 function parseCommand(text){
   text=text.trim();
-  // /comando valor DD/MM  ou  /comando valor (hoje)
-  const m=text.match(/^\/?(\w+)\s+([\d.,]+)(?:\s+(\d{1,2})\/?(\d{1,2})?)?$/);
+  // /comando soma DD/MM  ou  /comando soma (hoje). Soma ex: "40,90+22" ou "10 + 5 + 2"
+  const m=text.match(/^\/?(\w+)\s+(.+)$/);
   if(!m)return null;
-  const keyword=m[1].toLowerCase(),amount=parseFloat(m[2].replace(',','.'));
-  if(isNaN(amount)||amount<=0)return null;
+  const keyword=m[1].toLowerCase();
+  let rest=m[2].trim();
   let date=todayLocal();
-  if(m[3]){
+  // Data opcional no final: "15/03" ou "1503"
+  const dm=rest.match(/^(.*?)\s+(\d{1,2})\/?(\d{1,2})?$/);
+  if(dm){
     let day,month;
-    if(m[4]){day=parseInt(m[3]);month=parseInt(m[4]);}
-    else{const s=m[3].padStart(4,'0');day=parseInt(s.slice(0,2));month=parseInt(s.slice(2,4));}
+    if(dm[3]){day=parseInt(dm[2]);month=parseInt(dm[3]);}
+    else{const s=dm[2].padStart(4,'0');day=parseInt(s.slice(0,2));month=parseInt(s.slice(2,4));}
     if(day>=1&&day<=31&&month>=1&&month<=12){
+      rest=dm[1].trim();
       const now=new Date();let year=now.getFullYear();
       const parsed=new Date(year,month-1,day);
       if(parsed>now)year--;
       date=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
   }
-  return{keyword,amount,date};
+  // Soma os termos separados por "+"
+  const parts=rest.split('+');
+  let amount=0;
+  for(const p of parts){
+    const n=parseFloat(p.replace(',','.').trim());
+    if(isNaN(n)||n<=0)return null;
+    amount+=n;
+  }
+  if(!parts.length||amount<=0)return null;
+  return{keyword,amount:Math.round(amount*100)/100,date};
 }
 
 async function executeCommand(keyword,amount,rawText,cmdDate){
@@ -299,7 +311,7 @@ async function renderChatBanner(){
     }
     if(total<=0){el.style.display='none';return;}
     el.style.display='block';
-    el.innerHTML=`<div class="banner-line">⚠️ <strong>Atenção:</strong> Você tem <button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('installment')">${formatCurrency(total)} · ${count} parcela${count>1?'s':''} futura${count>1?'s':''} →</button> comprometidos</div><div class="banner-line">💰 <strong>Saldo Atual:</strong> <strong class="${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>`;
+    el.innerHTML=`<div class="banner-line">⚠️ <strong>Atenção:</strong> Você tem <button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('all')">${formatCurrency(total)} · ${count} parcela${count>1?'s':''} futura${count>1?'s':''} →</button> comprometidos</div><div class="banner-line">💰 <strong>Saldo Atual:</strong> <strong class="${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>`;
   }catch(e){console.error(e);}
 }
 
@@ -485,7 +497,10 @@ function renderChartExpenseCategory(tx,insts){
   for(const t of filterTxByMonth(tx,filter).filter(t=>t.type==='expense'))groups[t.category]=(groups[t.category]||0)+t.amount;
   const instMap=installmentsByCategoryInMonth(insts,target);
   for(const[cat,val]of Object.entries(instMap))groups[cat]=(groups[cat]||0)+val;
-  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
+  let labels=Object.keys(groups),data=Object.values(groups);
+  const sorted=labels.map((l,i)=>({l,v:data[i]})).sort((a,b)=>b.v-a.v);
+  labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
+  const colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartExpenseCategory',[]);return;}
   makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
   attachPieLegend('chartExpenseCategory',labels,data,colors);
@@ -493,7 +508,10 @@ function renderChartExpenseCategory(tx,insts){
 
 function renderChartIncomeCategory(tx){
   const groups={};filterTxByMonth(tx,dashboardFilter).filter(t=>t.type==='income').forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
-  const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
+  let labels=Object.keys(groups),data=Object.values(groups);
+  const sorted=labels.map((l,i)=>({l,v:data[i]})).sort((a,b)=>b.v-a.v);
+  labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
+  const colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIncomeCategory',[]);return;}
   makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
   attachPieLegend('chartIncomeCategory',labels,data,colors);
@@ -646,6 +664,7 @@ async function setupGlobalMonthFilter(){
   html+=`<option value="${cur}">📅 Mês Atual</option>`;
   for(const m of sorted)html+=`<option value="${m}">${formatMonthLabel(m)}</option>`;
   sel.innerHTML=html;
+  dashboardFilter=cur;
   sel.value=dashboardFilter;
   sel.addEventListener('change',()=>{dashboardFilter=sel.value;refreshDashboard();});
 }
@@ -1468,7 +1487,7 @@ async function openMonthExpenseModal(){
 
 // ===== MODAL FUTURE COMMITMENTS =====
 async function openFutureInstallmentsModal(filter){
-  filter=filter||'all';
+  filter=filter||'all';futureModalFilter=filter;
   const allInsts=await db.installments.toArray(),allRecs=await db.recurrings.toArray(),cards=await db.cards.toArray();
   const cardsMap={};for(const c of cards)cardsMap[c.id]=c;
   const now=new Date();
@@ -1494,6 +1513,8 @@ async function openFutureInstallmentsModal(filter){
 
   const hasRecs=allRecs.some(r=>r.active);
   const fixedAll=await db.fixedexpenses.toArray();
+  const allFixedPayments=await db.fixedpayments.toArray();
+  const paidFixed=new Set(allFixedPayments.map(p=>p.expenseId+':'+p.monthKey));
   const hasFixed=fixedAll.some(f=>f.active);
   const maxHorizon=hasRecs||hasFixed;
   if(maxHorizon){
@@ -1540,7 +1561,7 @@ async function openFutureInstallmentsModal(filter){
   for(const f of fixedAll){
     if(!f.active)continue;
     for(const key of allMonths){
-      monthData[key].items.push({type:'fixed',cardName:'',description:f.name,detail:'📄 fixa',value:f.amount});
+      monthData[key].items.push({type:'fixed',id:f.id,monthKey:key,cardName:'',description:f.name,detail:'📄 fixa',value:f.amount});
       monthData[key].total+=f.amount;
     }
   }
@@ -1553,12 +1574,14 @@ async function openFutureInstallmentsModal(filter){
     <button class="filter-btn ${filter==='all'?'active':''}" onclick="openFutureInstallmentsModal('all')">Todos</button>
     <button class="filter-btn ${filter==='installment'?'active':''}" onclick="openFutureInstallmentsModal('installment')">Parcelas</button>
     <button class="filter-btn ${filter==='recurring'?'active':''}" onclick="openFutureInstallmentsModal('recurring')">Recorrentes</button>
+    <button class="filter-btn ${filter==='fixed'?'active':''}" onclick="openFutureInstallmentsModal('fixed')">Contas</button>
     <span style="margin-left:auto;font-size:0.82rem;color:var(--text-secondary)">Total: ${formatCurrency(grandTotal)} · ${allMonths.length} mês${allMonths.length!==1?'es':''} · ${itemCount} item${itemCount!==1?'ns':''}</span>
   </div>`;
 
   // Render
   if(!allMonths.some(k=>monthData[k].items.some(i=>filter==='all'||i.type===filter))){
-    $('#futureInstallmentsBody').innerHTML=`<p class="empty-state">Nenhum item para o filtro "${filter==='installment'?'Parcelas':'Recorrentes'}".</p>`;
+    const fNames={installment:'Parcelas',recurring:'Recorrentes',fixed:'Contas Fixas'};
+    $('#futureInstallmentsBody').innerHTML=`<p class="empty-state">Nenhum item para o filtro "${fNames[filter]||''}".</p>`;
     $('#futureInstallmentsModal').classList.add('show');return;
   }
 
@@ -1576,13 +1599,43 @@ async function openFutureInstallmentsModal(filter){
         <span class="invoice-month-total">${formatCurrency(monthTotal)}</span>
       </div>
       <table class="detail-table" style="margin-top:0.3rem">
-        <thead><tr><th>Cartão</th><th>Descrição</th><th>Detalhe</th><th>Valor</th></tr></thead>
-        <tbody>${filtered.map(i=>`<tr><td class="card-name">${i.cardName}</td><td>${i.description}</td><td>${i.detail}</td><td style="color:var(--expense)">${formatCurrency(i.value)}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>Cartão</th><th>Descrição</th><th>Detalhe</th><th>Valor</th><th>Ação</th></tr></thead>
+        <tbody>${filtered.map(i=>{
+          let action='';
+          if(i.type==='fixed'){
+            const paid=paidFixed.has(i.id+':'+i.monthKey);
+            action=paid
+              ? `<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:var(--income);border-color:rgba(34,197,94,0.3)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">✅ Paga</button>`
+              : `<button class="btn-sm" style="background:rgba(245,158,11,0.15);color:#fbbf24;border-color:rgba(245,158,11,0.35)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">💰 Pagar</button>`;
+          }
+          const paidStyle=(i.type==='fixed'&&paidFixed.has(i.id+':'+i.monthKey))?'style="opacity:0.55"':'';
+          return `<tr ${paidStyle}><td class="card-name">${i.cardName}</td><td>${i.description}</td><td>${i.detail}</td><td style="color:var(--expense)">${formatCurrency(i.value)}</td><td>${action}</td></tr>`;
+        }).join('')}</tbody>
       </table>
     </div>`;
   }
   $('#futureInstallmentsBody').innerHTML=html;
   $('#futureInstallmentsModal').classList.add('show');
+}
+
+async function toggleFutureFixed(expenseId,monthKey){
+  const exp=await db.fixedexpenses.get(expenseId);
+  if(!exp)return;
+  const existing=await db.fixedpayments.where({expenseId,monthKey}).first();
+  if(existing){
+    if(!confirm(`Desmarcar "${exp.name}" de ${monthKey.replace('-','/')}?\n\nA transação será removida e o saldo restituído.`))return;
+    await db.fixedpayments.delete(existing.id);
+    const txs=await db.transactions.filter(t=>t.fixedExpenseId===expenseId&&t.fixedMonthKey===monthKey).toArray();
+    for(const t of txs)await db.transactions.delete(t.id);
+  }else{
+    if(!confirm(`Pagar "${exp.name}" (${formatCurrency(exp.amount)}) referente a ${monthKey.replace('-','/')}?`))return;
+    await db.fixedpayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
+    const tx={type:'expense',category:exp.category||'Contas Fixas',description:`${exp.name} (${monthKey.replace('-','/')})`,amount:exp.amount,date:todayLocal(),command:'contafixa',fixedExpenseId:expenseId,fixedMonthKey:monthKey,createdAt:new Date().toISOString()};
+    await db.transactions.add(tx);
+  }
+  await openFutureInstallmentsModal(futureModalFilter);
+  await refreshDashboard();await renderChatHistory();scrollChatToTop();scheduleBackup();
+  showNotification(existing?`"${exp.name}" desmarcado.`:`✅ "${exp.name}" pago!`);
 }
 
 // ===== BUDGETS =====
