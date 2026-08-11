@@ -325,7 +325,18 @@ nav {
   gap: 0.4rem;
   flex-wrap: wrap;
 }
-.banner-line + .banner-line { margin-top: 0.35rem; }
+.banner-line + .banner-line { margin-top: 0.45rem; }
+.banner-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.banner-value {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
 .banner-btn {
   background: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
