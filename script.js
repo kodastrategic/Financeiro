@@ -302,17 +302,32 @@ async function renderChatBanner(){
   try{
     const all=await db.transactions.toArray();
     const insts=await db.installments.toArray();
+    const recs=await db.recurrings.toArray();
+    const fixedAll=await db.fixedexpenses.toArray();
     const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+    const now=new Date();
+    const cur=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     let total=0,count=0;
+    // Parcelas com vencimento no mês atual
     for(const i of insts){
       if(i.paidInstallments>=i.installmentCount)continue;
-      const remaining=i.installmentCount-(i.paidInstallments||0);
-      total+=remaining*i.installmentValue;
-      count+=remaining;
+      const first=new Date(i.firstInstallmentDate+'T12:00:00');
+      for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
+        const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
+        if(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===cur){total+=i.installmentValue;count++;break;}
+      }
+    }
+    // Recorrentes ativas já iniciadas
+    for(const r of recs){
+      if(r.active&&r.startDate&&r.startDate.substring(0,7)<=cur){total+=r.amount;count++;}
+    }
+    // Contas fixas ativas
+    for(const f of fixedAll){
+      if(f.active){total+=f.amount;count++;}
     }
     if(total<=0){el.style.display='none';return;}
     el.style.display='block';
-    el.innerHTML=`<div class="banner-line">⚠️ <strong>Atenção:</strong> Você tem <button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('all')">${formatCurrency(total)} · ${count} parcela${count>1?'s':''} futura${count>1?'s':''} →</button> comprometidos</div><div class="banner-line">💰 <strong>Saldo Atual:</strong> <strong class="${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>`;
+    el.innerHTML=`<div class="banner-line">⚠️ <strong>Atenção:</strong> Você tem <button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('all')">${formatCurrency(total)} · ${count} item${count>1?'s':''} no mês atual →</button> comprometidos</div><div class="banner-line">💰 <strong>Saldo Atual:</strong> <strong class="${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>`;
   }catch(e){console.error(e);}
 }
 
