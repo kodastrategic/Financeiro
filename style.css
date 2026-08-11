@@ -306,6 +306,42 @@ nav {
 }
 .chat-input-area button:hover { opacity: 0.85; }
 
+/* Chat alert banner */
+.chat-alert-banner {
+  display: none;
+  margin: 0.75rem 1.5rem 0;
+  padding: 0.65rem 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-left: 3px solid #f59e0b;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.banner-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.banner-line + .banner-line { margin-top: 0.35rem; }
+.banner-btn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.banner-btn:hover { background: rgba(245, 158, 11, 0.28); }
+.banner-income { color: var(--income); }
+.banner-expense { color: var(--expense); }
+
 .autocomplete-box {
   position: absolute;
   bottom: 100%;
@@ -467,6 +503,35 @@ nav {
 .chart-container.full { grid-column: 1 / -1; }
 .chart-container h3 { font-size: 0.85rem; color: var(--text-secondary); }
 .chart-container canvas { max-height: 260px; max-width: 100%; }
+
+/* Chart custom legend (circles with %) */
+.pie-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  justify-content: center;
+  margin-top: 0.7rem;
+}
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.legend-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 0 0.35rem;
+  letter-spacing: 0.2px;
+}
 
 .chart-header {
   display: flex;
@@ -985,6 +1050,7 @@ td code { color: var(--accent); font-size: 0.85rem; }
   .chat-input-area input {
     font-size: 16px;
   }
+  .chat-alert-banner { margin: 0.6rem 0.8rem 0; }
   #cards, #bills, #debts { padding: 0.5rem; }
   #cards .panel, #bills .panel, #debts .panel { padding: 0.75rem !important; }
   .cards-layout { gap: 0.5rem; }

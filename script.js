@@ -180,6 +180,7 @@ async function processCommand(text){
   const{tx,balance}=result;
   addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem"><div><div class="msg-tx-header"><span>${tx.type==='income'?'📈':'📉'} <strong>${tx.type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${tx.category}</span></div><div class="msg-tx-amount ${tx.type}">${tx.type==='income'?'+':'-'} ${formatCurrency(tx.amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(tx.date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${tx.id})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${tx.id})" title="Excluir">✕</button></div>`,'msg-tx '+tx.type);
   addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
+  renderChatBanner();
 }
 
 function parseCommand(text){
@@ -278,10 +279,29 @@ async function renderChatHistory(){
   for(const t of sorted){
     addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem"><div><div class="msg-tx-header"><span>${t.type==='income'?'📈':'📉'} <strong>${t.type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${t.category}</span></div><div class="msg-tx-amount ${t.type}">${t.type==='income'?'+':'-'} ${formatCurrency(t.amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balMap[t.date])}</div><div class="msg-tx-date">${formatDate(t.date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button></div>`,'msg-tx '+t.type);
   }
+  await renderChatBanner();
   scrollChatToTop();
 }
 function addChatMessage(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;$('#chatMessages').prepend(d);}
 function scrollChatToTop(){const c=$('#chatMessages');c.scrollTop=0;}
+async function renderChatBanner(){
+  const el=$('#chatAlertBanner');if(!el)return;
+  try{
+    const all=await db.transactions.toArray();
+    const insts=await db.installments.toArray();
+    const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+    let total=0,count=0;
+    for(const i of insts){
+      if(i.paidInstallments>=i.installmentCount)continue;
+      const remaining=i.installmentCount-(i.paidInstallments||0);
+      total+=remaining*i.installmentValue;
+      count+=remaining;
+    }
+    if(total<=0){el.style.display='none';return;}
+    el.style.display='block';
+    el.innerHTML=`<div class="banner-line">⚠️ <strong>Atenção:</strong> Você tem <button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('installment')">${formatCurrency(total)} · ${count} parcela${count>1?'s':''} futura${count>1?'s':''} →</button> comprometidos</div><div class="banner-line">💰 <strong>Saldo Atual:</strong> <strong class="${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>`;
+  }catch(e){console.error(e);}
+}
 
 // ===== DASHBOARD =====
 async function refreshDashboard(){
@@ -298,6 +318,29 @@ function destroyAllCharts(){Object.values(charts).forEach(c=>c?.destroy());chart
 function makeChart(id,cfg){if(charts[id]){charts[id].destroy();delete charts[id];}const c=document.getElementById(id);if(!c)return null;charts[id]=new Chart(c,cfg);return charts[id];}
 function barGradient(ctx,ca,t,b){if(!ca)return t;const g=ctx.createLinearGradient(0,ca.top,0,ca.bottom);g.addColorStop(0,t);g.addColorStop(1,b);return g;}
 function barGradientHorizontal(ctx,ca,l,r){if(!ca)return l;const g=ctx.createLinearGradient(ca.left,0,ca.right,0);g.addColorStop(0,l);g.addColorStop(1,r);return g;}
+function doughnutOptions(){
+  return {responsive:true,plugins:{
+    legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>{
+      const total=ctx.dataset.data.reduce((s,v)=>s+v,0);
+      const pct=total>0?Math.round((ctx.parsed||0)/total*100):0;
+      return ` ${ctx.label}: ${formatCurrency(ctx.parsed||0)} (${pct}%)`;
+    }}}
+  }};
+}
+function attachPieLegend(chartId,labels,values,colors){
+  const el=document.getElementById(chartId);
+  const container=el?el.closest('.chart-container'):null;
+  if(!container)return;
+  let legend=container.querySelector('.pie-legend');
+  if(!legend){legend=document.createElement('div');legend.className='pie-legend';container.appendChild(legend);}
+  if(!labels||!labels.length){legend.innerHTML='';return;}
+  const total=values.reduce((s,v)=>s+v,0);
+  legend.innerHTML=labels.map((l,i)=>{
+    const pct=total>0?Math.round(values[i]/total*100):0;
+    return `<span class="legend-chip"><span class="legend-dot" style="background:${colors[i]}">${pct}%</span>${escapeHtml(l)}</span>`;
+  }).join('');
+}
 
 async function renderSummaryCards(tx,cards,insts,debts){
   const filter=dashboardFilter,isAll=filter==='all';
@@ -443,15 +486,17 @@ function renderChartExpenseCategory(tx,insts){
   const instMap=installmentsByCategoryInMonth(insts,target);
   for(const[cat,val]of Object.entries(instMap))groups[cat]=(groups[cat]||0)+val;
   const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
+  if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartExpenseCategory',[]);return;}
+  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  attachPieLegend('chartExpenseCategory',labels,data,colors);
 }
 
 function renderChartIncomeCategory(tx){
   const groups={};filterTxByMonth(tx,dashboardFilter).filter(t=>t.type==='income').forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
+  if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIncomeCategory',[]);return;}
+  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  attachPieLegend('chartIncomeCategory',labels,data,colors);
 }
 
 function renderChartMonthlyExpense(tx,insts){
@@ -542,7 +587,7 @@ async function renderChartFutureCommitments(insts,debts){
       {label:'Parcelas',data:installVals,backgroundColor:'#8b5cf6',borderRadius:4},
       {label:'Recorrentes',data:recVals,backgroundColor:'#f59e0b',borderRadius:4},
       {label:'Contas Fixas',data:fixedVals,backgroundColor:'#22c55e',borderRadius:4}
-    ]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}
+    ]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true,pointStyle:'circle'}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}
   });
 }
 
@@ -616,8 +661,9 @@ function renderChartIndebtedness(insts,debts,cards){
   if(totalDebt>0){labels.push('Dívidas');data.push(totalDebt);colors.push('#ef4444');}
   if(totalInstDebt>0){labels.push('Parcelas a Pagar');data.push(totalInstDebt);colors.push('#3b82f6');}
   if(creditUsed>0){labels.push('Crédito Utilizado');data.push(creditUsed);colors.push('#ec4899');}
-  if(!data.length){makeChart('chartIndebtedness',{type:'doughnut',data:{labels:['Sem dívidas'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartIndebtedness',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
+  if(!data.length){makeChart('chartIndebtedness',{type:'doughnut',data:{labels:['Sem dívidas'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIndebtedness',[]);return;}
+  makeChart('chartIndebtedness',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  attachPieLegend('chartIndebtedness',labels,data,colors);
 }
 
 async function renderChartCashFlow(tx,insts,debts){
@@ -1367,6 +1413,7 @@ function setupCreateCmdForm(){
       const all=await db.transactions.toArray();
       const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
       addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem"><div><div class="msg-tx-header"><span>${type==='income'?'📈':'📉'} <strong>${type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${category}</span></div><div class="msg-tx-amount ${type}">${type==='income'?'+':'-'} ${formatCurrency(amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${txId})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${txId})" title="Excluir">✕</button></div>`,'msg-tx '+type);
+      renderChatBanner();
       showNotification(`/${keyword} criado e executado!`);
     }catch(e){showNotification('Erro: '+e.message);console.error(e);}
   });
