@@ -984,9 +984,34 @@ td code { color: var(--accent); font-size: 0.85rem; }
   }
   .invoice-month {
     padding: 0.6rem;
+    overflow-x: auto;
   }
   .filter-bar {
     flex-wrap: wrap;
+  }
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+  .modal {
+    max-height: 92vh;
+  }
+  .modal-header, .modal-subheader {
+    padding: 0.75rem 1rem;
+  }
+  .modal-body {
+    padding: 0.75rem 0.85rem;
+  }
+  .detail-table th, .detail-table td {
+    padding: 0.32rem 0.4rem;
+    font-size: 0.74rem;
+  }
+  .detail-table .card-name {
+    font-size: 0.68rem;
+  }
+  .detail-table .btn-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.66rem;
+    white-space: nowrap;
   }
   /* Cards / Bills / Debts mobile */
   #cards, #bills, #debts { padding:0.75rem; }

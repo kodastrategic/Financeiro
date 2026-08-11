@@ -15,6 +15,7 @@ const SEED_CATEGORIES = [
 
 let charts={}, editingCategory=null, backupTimer=null, dashboardFilter='all', futureModalFilter='all';
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const normalizeKey=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const todayLocal=()=>new Date().toLocaleDateString('en-CA');
 const currentMonthKey=()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;};
 const formatMonthLabel=m=>{const[y,mo]=m.split('-');return `${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mo)-1]}/${y}`;};
@@ -120,12 +121,12 @@ async function showAutocomplete(input,box){
   }
   if(text.startsWith('/')){
     prefix='/';
-    const partial=text.slice(1).toLowerCase();
-    filtered=allEntries.filter(c=>c.keyword.includes(partial));
+    const partial=normalizeKey(text.slice(1));
+    filtered=allEntries.filter(c=>normalizeKey(c.keyword).includes(partial));
   }else if(text.length>0){
     prefix='';
-    const partial=text.toLowerCase();
-    filtered=allEntries.filter(c=>c.keyword.includes(partial));
+    const partial=normalizeKey(text);
+    filtered=allEntries.filter(c=>normalizeKey(c.keyword).includes(partial));
   }else{
     // Vazio — mostra os mais usados
     prefix='';
@@ -186,7 +187,7 @@ async function processCommand(text){
 function parseCommand(text){
   text=text.trim();
   // /comando soma DD/MM  ou  /comando soma (hoje). Soma ex: "40,90+22" ou "10 + 5 + 2"
-  const m=text.match(/^\/?(\w+)\s+(.+)$/);
+  const m=text.match(/^\/?([\p{L}\p{N}_]+)\s+(.+)$/u);
   if(!m)return null;
   const keyword=m[1].toLowerCase();
   let rest=m[2].trim();
@@ -221,11 +222,11 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
   let cmd;
   try{
     const all=await db.commands.toArray();
-    cmd=all.find(c=>c.keyword.toLowerCase()===keyword.toLowerCase());
+    cmd=all.find(c=>normalizeKey(c.keyword)===normalizeKey(keyword));
     if(!cmd){
       // Fallback: procura uma categoria com o mesmo nome
       const cats=await db.categories.toArray();
-      const cat=cats.find(c=>c.name.toLowerCase()===keyword.toLowerCase());
+      const cat=cats.find(c=>normalizeKey(c.name)===normalizeKey(keyword));
       if(cat){
         cmd={keyword:cat.name,category:cat.name,type:cat.type};
       }else{
