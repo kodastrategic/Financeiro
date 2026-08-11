@@ -13,9 +13,26 @@ const SEED_CATEGORIES = [
 ];
 // db é fornecido pelo supabase-config.js + js/db.js
 
-let charts={}, editingCategory=null, backupTimer=null;
+let charts={}, editingCategory=null, backupTimer=null, dashboardFilter='all';
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 const todayLocal=()=>new Date().toLocaleDateString('en-CA');
+const currentMonthKey=()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;};
+const formatMonthLabel=m=>{const[y,mo]=m.split('-');return `${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mo)-1]}/${y}`;};
+function filterTxByMonth(tx,m){return m==='all'?tx:tx.filter(t=>t.date.startsWith(m));}
+function filterTxUpToMonth(tx,m){return m==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=m);}
+function installmentsByCategoryInMonth(insts,m){
+  const map={};
+  for(const i of insts){
+    if(i.paidInstallments>=i.installmentCount)continue;
+    const first=new Date(i.firstInstallmentDate+'T12:00:00');
+    for(let p=i.paidInstallments;p<i.installmentCount;p++){
+      const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
+      if(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===m){map[i.category]=(map[i.category]||0)+i.installmentValue;break;}
+    }
+  }
+  return map;
+}
+function installmentsTotalInMonth(insts,m){let s=0;for(const v of Object.values(installmentsByCategoryInMonth(insts,m)))s+=v;return s;}
 
 // === AUTO-BACKUP (cloud, no localStorage needed) ===
 function scheduleBackup(){}
@@ -35,7 +52,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     setupCardForm(); setupInstallmentForm(); setupDebtForm(); setupRecurringForm(); setupFixedForm();
     setupEditTxForm(); setupBudgetForm();
     await loadCardSelect(); await loadFixedTable(); await loadBudgetsTable();
-    await refreshDashboard(); setupChartGlow(); setupTopChartFilters(); renderChatHistory(); scrollChatToTop(); $('#chatInput').focus();
+    await setupGlobalMonthFilter(); await refreshDashboard(); setupChartGlow(); renderChatHistory(); scrollChatToTop(); $('#chatInput').focus();
     $('#loadingScreen').classList.add('hidden');
   }catch(e){console.error(e);showNotification('Erro: '+e.message);}
 });
@@ -273,10 +290,8 @@ async function refreshDashboard(){
   await renderChartBalanceLine(tx,insts,debts);renderChartExpenseCategory(tx,insts);renderChartIncomeCategory(tx);
   renderChartMonthlyExpense(tx,insts);renderChartIncomePeriod(tx);renderChartExpensePeriod(tx);
   await renderChartFutureCommitments(insts,debts);renderChartInvestmentLine(tx);
-  renderChartComparison(tx);await populateMonthFilters(tx);
-  const topExpenseFilter=$('#filterTopExpense').value||'current';
-  const topIncomeFilter=$('#filterTopIncome').value||'current';
-  renderChartTopExpense(tx,topExpenseFilter);renderChartTopIncome(tx,topIncomeFilter);
+  renderChartComparison(tx);
+  renderChartTopExpense(tx);renderChartTopIncome(tx);
   renderChartIndebtedness(insts,debts,cards);await renderChartCashFlow(tx,insts,debts);
 }
 function destroyAllCharts(){Object.values(charts).forEach(c=>c?.destroy());charts={};}
@@ -285,12 +300,14 @@ function barGradient(ctx,ca,t,b){if(!ca)return t;const g=ctx.createLinearGradien
 function barGradientHorizontal(ctx,ca,l,r){if(!ca)return l;const g=ctx.createLinearGradient(ca.left,0,ca.right,0);g.addColorStop(0,l);g.addColorStop(1,r);return g;}
 
 async function renderSummaryCards(tx,cards,insts,debts){
-  const income=tx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const filter=dashboardFilter,isAll=filter==='all';
+  const thisMonth=currentMonthKey(),targetMonth=isAll?thisMonth:filter;
+  const periodTx=filterTxByMonth(tx,targetMonth),cutoffTx=filterTxUpToMonth(tx,filter);
+  const income=cutoffTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=cutoffTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance=income-expense;
-  const now=new Date(),thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const monthIncome=tx.filter(t=>t.type==='income'&&t.date.startsWith(thisMonth)).reduce((s,t)=>s+t.amount,0);
-  const monthExpense=tx.filter(t=>t.type==='expense'&&t.date.startsWith(thisMonth)).reduce((s,t)=>s+t.amount,0);
+  const monthIncome=periodTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const monthExpense=periodTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const futureInstValue=insts.filter(i=>i.paidInstallments<i.installmentCount).reduce((s,i)=>s+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
   const totalDebt=debts.filter(d=>d.currentAmount>0).reduce((s,d)=>s+d.currentAmount,0);
   const overdueDebt=debts.reduce((s,d)=>s+d.currentAmount,0);
@@ -322,20 +339,11 @@ async function renderSummaryCards(tx,cards,insts,debts){
   const budgets=await db.budgets.toArray();
   const alertsEl=$('#budgetAlerts');
   if(budgets.length){
-    const monthTx=tx.filter(t=>t.date.startsWith(thisMonth)&&t.type==='expense');
+    const monthTx=periodTx.filter(t=>t.type==='expense');
     const spentMap={};
     monthTx.forEach(t=>{spentMap[t.category]=(spentMap[t.category]||0)+t.amount;});
-    for(const i of insts){
-      if(i.paidInstallments>=i.installmentCount)continue;
-      const first=new Date(i.firstInstallmentDate+'T12:00:00');
-      for(let p=i.paidInstallments;p<i.installmentCount;p++){
-        const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-        if(d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()){
-          if(i.category)spentMap[i.category]=(spentMap[i.category]||0)+i.installmentValue;
-          break;
-        }
-      }
-    }
+    const instMap=installmentsByCategoryInMonth(insts,targetMonth);
+    for(const[cat,val]of Object.entries(instMap))spentMap[cat]=(spentMap[cat]||0)+val;
     let alertHtml='';
     for(const b of budgets){
       const spent=spentMap[b.category]||0;
@@ -398,7 +406,8 @@ async function getFutureMonthly(insts){
 }
 
 async function renderChartBalanceLine(tx,insts,debts){
-  const sorted=[...tx].sort((a,b)=>a.date.localeCompare(b.date));
+  const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
+  const sorted=[...base].sort((a,b)=>a.date.localeCompare(b.date));
   const daily={};let running=0;
   for(const t of sorted){running+=t.type==='income'?t.amount:-t.amount;daily[t.date]=running;}
   const dates=Object.keys(daily).sort(),vals=dates.map(d=>daily[d]);
@@ -428,33 +437,31 @@ async function renderChartBalanceLine(tx,insts,debts){
 }
 
 function renderChartExpenseCategory(tx,insts){
+  const filter=dashboardFilter,target=filter==='all'?currentMonthKey():filter;
   const groups={};
-  for(const t of tx.filter(t=>t.type==='expense'))groups[t.category]=(groups[t.category]||0)+t.amount;
-  const now=new Date(),curYear=now.getFullYear(),curMonth=now.getMonth();
-  for(const i of insts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments;p<i.installmentCount;p++){
-      const due=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-      if(due.getFullYear()===curYear&&due.getMonth()===curMonth){
-        groups[i.category]=(groups[i.category]||0)+i.installmentValue;
-        break;
-      }
-    }
-  }
+  for(const t of filterTxByMonth(tx,filter).filter(t=>t.type==='expense'))groups[t.category]=(groups[t.category]||0)+t.amount;
+  const instMap=installmentsByCategoryInMonth(insts,target);
+  for(const[cat,val]of Object.entries(instMap))groups[cat]=(groups[cat]||0)+val;
   const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
 }
 
 function renderChartIncomeCategory(tx){
-  const groups={};tx.filter(t=>t.type==='income').forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
+  const groups={};filterTxByMonth(tx,dashboardFilter).filter(t=>t.type==='income').forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const labels=Object.keys(groups),data=Object.values(groups),colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10}}}}}});
 }
 
 function renderChartMonthlyExpense(tx,insts){
+  if(dashboardFilter!=='all'){
+    const target=dashboardFilter;
+    const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)+installmentsTotalInMonth(insts,target);
+    if(total===0){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    makeChart('chartMonthlyExpense',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Despesas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.2)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    return;
+  }
   const monthly={};
   for(const t of tx.filter(t=>t.type==='expense')){const m=t.date.substring(0,7);monthly[m]=(monthly[m]||0)+t.amount;}
   for(const i of insts){
@@ -472,6 +479,13 @@ function renderChartMonthlyExpense(tx,insts){
 }
 
 function renderChartIncomePeriod(tx){
+  if(dashboardFilter!=='all'){
+    const target=dashboardFilter;
+    const total=filterTxByMonth(tx,target).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    if(total===0){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    makeChart('chartIncomePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Entradas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    return;
+  }
   const periods={};tx.filter(t=>t.type==='income').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
   if(!labels.length){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
@@ -479,6 +493,13 @@ function renderChartIncomePeriod(tx){
 }
 
 function renderChartExpensePeriod(tx){
+  if(dashboardFilter!=='all'){
+    const target=dashboardFilter;
+    const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    if(total===0){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    makeChart('chartExpensePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Saídas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    return;
+  }
   const periods={};tx.filter(t=>t.type==='expense').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
   if(!labels.length){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
@@ -526,7 +547,8 @@ async function renderChartFutureCommitments(insts,debts){
 }
 
 function renderChartInvestmentLine(tx){
-  const inv=tx.filter(t=>t.category==='Investimentos'),sorted=[...inv].sort((a,b)=>a.date.localeCompare(b.date));
+  const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
+  const inv=base.filter(t=>t.category==='Investimentos'),sorted=[...inv].sort((a,b)=>a.date.localeCompare(b.date));
   const daily={};let running=0;
   sorted.forEach(t=>{running+=t.type==='income'?t.amount:-t.amount;daily[t.date]=running;});
   const dates=Object.keys(daily).sort(),vals=dates.map(d=>daily[d]);
@@ -535,6 +557,15 @@ function renderChartInvestmentLine(tx){
 }
 
 function renderChartComparison(tx){
+  if(dashboardFilter!=='all'){
+    const target=dashboardFilter;
+    const periodTx=filterTxByMonth(tx,target);
+    const incomes=periodTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const expenses=periodTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    if(!incomes&&!expenses){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'},{label:'Despesas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    makeChart('chartComparison',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Receitas',data:[incomes],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')},{label:'Despesas',data:[expenses],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    return;
+  }
   const monthly={};
   tx.forEach(t=>{const m=t.date.substring(0,7);if(!monthly[m])monthly[m]={income:0,expense:0};monthly[m][t.type]+=t.amount;});
   const months=Object.keys(monthly).sort().slice(-12),incomes=months.map(m=>monthly[m].income),expenses=months.map(m=>monthly[m].expense);
@@ -542,8 +573,8 @@ function renderChartComparison(tx){
   makeChart('chartComparison',{type:'bar',data:{labels:months,datasets:[{label:'Receitas',data:incomes,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')},{label:'Despesas',data:expenses,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
-function renderChartTopExpense(tx, monthFilter){
-  const filtered=monthFilter==='current'?tx.filter(t=>t.type==='expense'&&t.date.startsWith(todayLocal().substring(0,7))):monthFilter==='all'?tx.filter(t=>t.type==='expense'):tx.filter(t=>t.type==='expense'&&t.date.startsWith(monthFilter));
+function renderChartTopExpense(tx){
+  const filtered=dashboardFilter==='all'?tx.filter(t=>t.type==='expense'):tx.filter(t=>t.type==='expense'&&t.date.startsWith(dashboardFilter));
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
   const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
@@ -551,8 +582,8 @@ function renderChartTopExpense(tx, monthFilter){
   makeChart('chartTopExpense',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
-function renderChartTopIncome(tx, monthFilter){
-  const filtered=monthFilter==='current'?tx.filter(t=>t.type==='income'&&t.date.startsWith(todayLocal().substring(0,7))):monthFilter==='all'?tx.filter(t=>t.type==='income'):tx.filter(t=>t.type==='income'&&t.date.startsWith(monthFilter));
+function renderChartTopIncome(tx){
+  const filtered=dashboardFilter==='all'?tx.filter(t=>t.type==='income'):tx.filter(t=>t.type==='income'&&t.date.startsWith(dashboardFilter));
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
   const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
@@ -560,35 +591,18 @@ function renderChartTopIncome(tx, monthFilter){
   makeChart('chartTopIncome',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
-async function populateMonthFilters(tx){
-  if(!tx)tx=await db.transactions.toArray();
-  const months=new Set();
-  tx.forEach(t=>months.add(t.date.substring(0,7)));
-  const sorted=[...months].sort();
-  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  ['filterTopExpense','filterTopIncome'].forEach(id=>{
-    const sel=$(('#'+id));
-    const cur=sel.value;
-    sel.innerHTML='<option value="current">📅 Mês Atual</option><option value="all">📊 Todos</option>';
-    sorted.forEach(m=>{
-      const [y,mo]=m.split('-');
-      const opt=document.createElement('option');
-      opt.value=m;opt.textContent=meses[parseInt(mo)-1]+'/'+y;
-      sel.appendChild(opt);
-    });
-    if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;
-  });
-}
-
-function setupTopChartFilters(){
-  ['filterTopExpense','filterTopIncome'].forEach(id=>{
-    $('#'+id).addEventListener('change',async function(){
-      const tx=await db.transactions.toArray();
-      const filter=this.value;
-      if(id==='filterTopExpense')renderChartTopExpense(tx,filter);
-      else renderChartTopIncome(tx,filter);
-    });
-  });
+async function setupGlobalMonthFilter(){
+  const sel=$('#globalMonthFilter');if(!sel)return;
+  const tx=await db.transactions.toArray();
+  const months=new Set(tx.map(t=>t.date.substring(0,7)));
+  const cur=currentMonthKey();
+  const sorted=[...months].filter(m=>m!==cur).sort().reverse();
+  let html='<option value="all">📊 Todos os meses</option>';
+  html+=`<option value="${cur}">📅 Mês Atual</option>`;
+  for(const m of sorted)html+=`<option value="${m}">${formatMonthLabel(m)}</option>`;
+  sel.innerHTML=html;
+  sel.value=dashboardFilter;
+  sel.addEventListener('change',()=>{dashboardFilter=sel.value;refreshDashboard();});
 }
 
 function renderChartIndebtedness(insts,debts,cards){
@@ -607,7 +621,9 @@ function renderChartIndebtedness(insts,debts,cards){
 }
 
 async function renderChartCashFlow(tx,insts,debts){
-  const now=new Date();
+  const filter=dashboardFilter;
+  const now=filter==='all'?new Date():new Date(parseInt(filter.split('-')[0]),parseInt(filter.split('-')[1])-1,1);
+  const anchorKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const monthly={};
   for(let i=-3;i<12;i++){
     const d=new Date(now.getFullYear(),now.getMonth()+i,1);
@@ -619,7 +635,7 @@ async function renderChartCashFlow(tx,insts,debts){
   }
   const future=await getFutureMonthly(insts);
   const months=Object.keys(monthly).sort();
-  const pastMonths=months.filter(m=>m<=todayLocal().substring(0,7));
+  const pastMonths=months.filter(m=>m<=anchorKey);
   const startBalance=pastMonths.reduce((s,m)=>s+monthly[m],0);
   let proj=startBalance;
   const projValues=[];
@@ -1360,8 +1376,9 @@ function setupCreateCmdForm(){
 function closeModal(id){$('#'+id).classList.remove('show');}
 async function openProjectedModal(){
   const tx=await db.transactions.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray();
-  const income=tx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
+  const income=base.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=base.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance=income-expense;
   const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
   const monthly=await getFutureMonthly(insts);
@@ -1388,7 +1405,7 @@ async function openProjectedModal(){
 // ===== MODAL MONTH EXPENSE =====
 async function openMonthExpenseModal(){
   const tx=await db.transactions.toArray();
-  const now=new Date(),thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const now=new Date(),thisMonth=dashboardFilter==='all'?currentMonthKey():dashboardFilter;
   const expenses=tx.filter(t=>t.type==='expense'&&t.date.startsWith(thisMonth)).sort((a,b)=>b.date.localeCompare(a.date));
   const total=expenses.reduce((s,t)=>s+t.amount,0);
   $('#monthExpenseInfo').textContent=`Total: ${formatCurrency(total)} | ${expenses.length} despesa${expenses.length!==1?'s':''} em ${thisMonth}`;
