@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmação de Presença</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="rsvp.css">
+  <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div class="deco deco-1"></div>
+<div class="deco deco-2"></div>
+<div class="deco deco-3"></div>
+
+<main class="wrap">
+  <section class="card" id="cardForm">
+    <span class="eyebrow">Confirmação de Presença</span>
+    <h1>Sua presença é<br><em>muito especial</em></h1>
+    <p class="lead">Estamos preparando tudo com carinho e será uma alegria compartilhar esse momento com você. Deixe seu nome abaixo para confirmarmos a sua vinda.</p>
+    <form id="rsvpForm" autocomplete="off" novalidate>
+      <label for="guestName">Seu nome</label>
+      <input type="text" id="guestName" placeholder="Digite seu nome completo" maxlength="80">
+      <button type="submit" id="btnConfirm">Confirmar presença</button>
+      <p class="error" id="errorMsg" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section class="card success-card" id="cardSuccess" hidden>
+    <div class="check">
+      <svg viewBox="0 0 52 52" aria-hidden="true"><path d="M14 27l8 8 16-18"/></svg>
+    </div>
+    <h1>Presença<br><em>confirmada!</em></h1>
+    <p class="lead" id="successMsg"></p>
+  </section>
+</main>
+
+<script>
+(function() {
+  'use strict';
+  const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+
+  const $ = (s) => document.getElementById(s);
+  const form = $('rsvpForm'), input = $('guestName'), btn = $('btnConfirm'),
+        errEl = $('errorMsg'), cardForm = $('cardForm'),
+        cardSuccess = $('cardSuccess'), successMsg = $('successMsg');
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    input.classList.remove('shake');
+    void input.offsetWidth;
+    input.classList.add('shake');
+    input.focus();
+  }
+
+  function setLoading(on) {
+    btn.disabled = on;
+    btn.textContent = on ? 'Confirmando...' : 'Confirmar presença';
+  }
+
+  function showSuccess(name, already) {
+    successMsg.textContent = already
+      ? name + ', você já havia confirmado presença. Até lá!'
+      : name + ', mal podemos esperar para ver você!';
+    cardForm.hidden = true;
+    cardSuccess.hidden = false;
+  }
+
+  function escapeLike(s) { return s.replace(/[\\%_]/g, '\\$&'); }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const name = input.value.trim().replace(/\s+/g, ' ');
+    if (name.length < 2) {
+      showError('Por favor, digite seu nome.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data: existing } = await sb.from('rsvps')
+        .select('name').ilike('name', escapeLike(name));
+      if (existing && existing.length) {
+        showSuccess(existing[0].name, true);
+        return;
+      }
+      const { error } = await sb.from('rsvps')
+        .insert({ name: name, confirmedat: new Date().toISOString() });
+      if (error) throw error;
+      showSuccess(name, false);
+    } catch (ex) {
+      console.error(ex);
+      showError('Não foi possível confirmar agora. Tente novamente.');
+      setLoading(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>
