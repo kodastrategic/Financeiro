@@ -48,15 +48,33 @@
       d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  async function removeRsvp(id, li) {
+    li.classList.add('removing');
+    try {
+      const { error } = await sb.from('rsvps').delete().eq('id', id);
+      if (error) throw error;
+    } catch (ex) {
+      console.error(ex);
+      li.classList.remove('removing');
+      return;
+    }
+    setTimeout(() => {
+      all = all.filter(x => x.id !== id);
+      render();
+    }, 240);
+  }
+
   function render() {
     const q = searchEl.value.trim().toLowerCase();
     const rows = all.filter(r => !q || r.name.toLowerCase().includes(q));
     listEl.innerHTML = '';
     rows.forEach((r, i) => {
       const li = document.createElement('li');
+
       const pos = document.createElement('span');
       pos.className = 'pos';
       pos.textContent = String(i + 1).padStart(2, '0');
+
       const who = document.createElement('div');
       who.className = 'who';
       const strong = document.createElement('strong');
@@ -64,7 +82,29 @@
       const time = document.createElement('time');
       time.textContent = formatDate(r.confirmedat);
       who.append(strong, time);
-      li.append(pos, who);
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'remove-btn';
+      rm.title = 'Remover da lista';
+      rm.setAttribute('aria-label', 'Remover ' + r.name);
+      rm.textContent = '\u00d7';
+      let timer = null;
+      rm.addEventListener('click', async () => {
+        if (rm.classList.contains('arm')) {
+          clearTimeout(timer);
+          await removeRsvp(r.id, li);
+          return;
+        }
+        rm.classList.add('arm');
+        rm.textContent = 'Confirmar?';
+        timer = setTimeout(() => {
+          rm.classList.remove('arm');
+          rm.textContent = '\u00d7';
+        }, 3200);
+      });
+
+      li.append(pos, who, rm);
       listEl.appendChild(li);
     });
     emptyEl.hidden = rows.length > 0;

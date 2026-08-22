@@ -22,10 +22,11 @@
     <h1>Sua presença é<br><em>muito especial</em></h1>
     <p class="lead">Estamos preparando tudo com carinho e será uma alegria compartilhar esse momento com você. Deixe seu nome abaixo para confirmarmos a sua vinda.</p>
     <form id="rsvpForm" autocomplete="off" novalidate>
-      <label for="guestName">Seu nome</label>
+      <label for="guestName" id="formLabel">Seu nome</label>
       <input type="text" id="guestName" placeholder="Digite seu nome completo" maxlength="80">
       <button type="submit" id="btnConfirm">Confirmar presença</button>
       <p class="error" id="errorMsg" aria-live="polite"></p>
+      <button type="button" class="link-btn" id="toggleMode">Preciso cancelar minha presença</button>
     </form>
   </section>
 
@@ -33,8 +34,9 @@
     <div class="check">
       <svg viewBox="0 0 52 52" aria-hidden="true"><path d="M14 27l8 8 16-18"/></svg>
     </div>
-    <h1>Presença<br><em>confirmada!</em></h1>
+    <h1 id="successTitle">Presença<br><em>confirmada!</em></h1>
     <p class="lead" id="successMsg"></p>
+    <button type="button" class="ghost-btn" id="successAction" hidden>Cancelar minha presença</button>
   </section>
 </main>
 
@@ -46,7 +48,11 @@
   const $ = (s) => document.getElementById(s);
   const form = $('rsvpForm'), input = $('guestName'), btn = $('btnConfirm'),
         errEl = $('errorMsg'), cardForm = $('cardForm'),
-        cardSuccess = $('cardSuccess'), successMsg = $('successMsg');
+        cardSuccess = $('cardSuccess'), successMsg = $('successMsg'),
+        successTitle = $('successTitle'), successAction = $('successAction'),
+        toggleModeBtn = $('toggleMode'), formLabel = $('formLabel');
+
+  let mode = 'confirm', lastName = '';
 
   function showError(msg) {
     errEl.textContent = msg;
@@ -58,18 +64,67 @@
 
   function setLoading(on) {
     btn.disabled = on;
-    btn.textContent = on ? 'Confirmando...' : 'Confirmar presença';
+    if (on) btn.textContent = mode === 'cancel' ? 'Cancelando...' : 'Confirmando...';
+    else btn.textContent = mode === 'cancel' ? 'Cancelar presença' : 'Confirmar presença';
   }
 
-  function showSuccess(name, already) {
-    successMsg.textContent = already
-      ? name + ', você já havia confirmado presença. Até lá!'
-      : name + ', mal podemos esperar para ver você!';
+  function setMode(m) {
+    mode = m;
+    errEl.textContent = '';
+    const cancel = m === 'cancel';
+    btn.classList.toggle('danger', cancel);
+    btn.textContent = cancel ? 'Cancelar presença' : 'Confirmar presença';
+    toggleModeBtn.textContent = cancel ? 'Voltar para confirmação' : 'Preciso cancelar minha presença';
+    formLabel.textContent = cancel ? 'Confirme seu nome' : 'Seu nome';
+    input.placeholder = cancel ? 'Digite seu nome como você confirmou' : 'Digite seu nome completo';
+  }
+
+  function showResult(kind, name) {
+    lastName = name;
+    let title, msg, purpose = null, label = '';
+    if (kind === 'cancelled') {
+      title = 'Presença<br><em>cancelada.</em>';
+      msg = name + ', se mudar de ideia, é só confirmar novamente.';
+      purpose = 'back'; label = 'Voltar';
+    } else if (kind === 'already') {
+      title = 'Presença<br><em>confirmada!</em>';
+      msg = name + ', você já havia confirmado presença. Até lá!';
+      purpose = 'cancel'; label = 'Cancelar minha presença';
+    } else {
+      title = 'Presença<br><em>confirmada!</em>';
+      msg = name + ', mal podemos esperar para ver você!';
+    }
+    successTitle.innerHTML = title;
+    successMsg.textContent = msg;
+    successAction.hidden = !purpose;
+    if (purpose) {
+      successAction.dataset.purpose = purpose;
+      successAction.textContent = label;
+    }
     cardForm.hidden = true;
     cardSuccess.hidden = false;
   }
 
   function escapeLike(s) { return s.replace(/[\\%_]/g, '\\$&'); }
+
+  toggleModeBtn.addEventListener('click', () => {
+    setMode(mode === 'confirm' ? 'cancel' : 'confirm');
+  });
+
+  successAction.addEventListener('click', () => {
+    const purpose = successAction.dataset.purpose;
+    cardSuccess.hidden = true;
+    cardForm.hidden = false;
+    setLoading(false);
+    if (purpose === 'cancel') {
+      setMode('cancel');
+      input.value = lastName;
+    } else {
+      setMode('confirm');
+      input.value = '';
+    }
+    input.focus();
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -81,19 +136,32 @@
     }
     setLoading(true);
     try {
-      const { data: existing } = await sb.from('rsvps')
-        .select('name').ilike('name', escapeLike(name));
-      if (existing && existing.length) {
-        showSuccess(existing[0].name, true);
-        return;
+      const { data: found } = await sb.from('rsvps')
+        .select('id,name').ilike('name', escapeLike(name));
+      const row = (found && found.length) ? found[0] : null;
+
+      if (mode === 'confirm') {
+        if (row) {
+          showResult('already', row.name);
+          return;
+        }
+        const { error } = await sb.from('rsvps')
+          .insert({ name: name, confirmedat: new Date().toISOString() });
+        if (error) throw error;
+        showResult('confirmed', name);
+      } else {
+        if (!row) {
+          showError('Não encontramos nenhuma confirmação com esse nome.');
+          setLoading(false);
+          return;
+        }
+        const { error } = await sb.from('rsvps').delete().eq('id', row.id);
+        if (error) throw error;
+        showResult('cancelled', row.name);
       }
-      const { error } = await sb.from('rsvps')
-        .insert({ name: name, confirmedat: new Date().toISOString() });
-      if (error) throw error;
-      showSuccess(name, false);
     } catch (ex) {
       console.error(ex);
-      showError('Não foi possível confirmar agora. Tente novamente.');
+      showError('Não foi possível agora. Tente novamente.');
       setLoading(false);
     }
   });

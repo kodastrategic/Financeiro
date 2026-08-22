@@ -272,6 +272,72 @@ button[type="submit"]:disabled { opacity: 0.65; cursor: wait; }
   padding: 2.5rem 0;
 }
 
+/* ---- cancel (guest) / remove (admin) actions ---- */
+.link-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.9rem;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: center;
+  cursor: pointer;
+}
+.link-btn:hover { color: var(--ink); }
+
+button[type="submit"].danger {
+  background: #A94434;
+  box-shadow: 0 12px 26px rgba(169, 68, 52, 0.32);
+}
+button[type="submit"].danger:hover:not(:disabled) {
+  background: #8f382b;
+}
+
+.success-card .ghost-btn { margin-top: 1.6rem; }
+
+.list .who { flex: 1; }
+
+.remove-btn {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(77, 138, 110, 0.25);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.remove-btn:hover {
+  border-color: #A94434;
+  color: #A94434;
+  background: rgba(169, 68, 52, 0.06);
+}
+.remove-btn.arm,
+.remove-btn.arm:hover {
+  width: auto;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border-color: #A94434;
+  color: #fff;
+  background: #A94434;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.list li.removing {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
 @media (min-width: 480px) {
   .card { padding: 3rem 2.6rem; }
 }
