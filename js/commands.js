@@ -17,7 +17,7 @@ async function loadCategoriesTable(){
 async function loadCategoriesSelect(){
   const cats=await db.categories.toArray();
   const opts=cats.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
-  $$('#cmdCategory, #instCategory, #recCategory, #fixedCategory').forEach(sel=>{
+  $$('#cmdCategory, #fixedCategory').forEach(sel=>{
     sel.innerHTML=opts;
   });
   const expenseOpts=cats.filter(c=>c.type==='expense').map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
@@ -163,18 +163,6 @@ async function loadBudgetsTable(){
   const monthTx=tx.filter(t=>t.date.startsWith(thisMonth)&&t.type==='expense');
   const spentMap={};
   monthTx.forEach(t=>{spentMap[t.category]=(spentMap[t.category]||0)+t.amount;});
-  const insts=await db.installments.toArray();
-  for(const i of insts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments;p<i.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-      if(d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()){
-        spentMap[i.category]=(spentMap[i.category]||0)+i.installmentValue;
-        break;
-      }
-    }
-  }
   tb.innerHTML=budgets.map(b=>{
     const spent=spentMap[b.category]||0;
     const pct=Math.min(100,Math.round(spent/b.limit*100));

@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS fixedexpenses (
   dueday INTEGER,
   category TEXT NOT NULL,
   active BOOLEAN DEFAULT true,
+  startmonth TEXT,
+  endmonth TEXT,
   createdat TEXT DEFAULT (now()::text)
 );
 

@@ -11,9 +11,8 @@ function setupTabNavigation(){
       b.classList.add('active');$(`#${b.dataset.tab}`).classList.add('active');
       if(b.dataset.tab==='dashboard')Object.values(charts).forEach(c=>c?.resize());
       if(b.dataset.tab==='chat'){$('#chatInput').focus();scrollChatToTop();}
-      if(b.dataset.tab==='cards'){loadCardsTable();loadCardSelect();}
-      if(b.dataset.tab==='bills'){loadFixedTable();loadRecurringsTable();}
-      if(b.dataset.tab==='debts'){loadInstallmentsTable();loadDebtsTable();loadDebtPaymentsTable();loadCardSelect();}
+      if(b.dataset.tab==='bills'){loadFixedTable();}
+      if(b.dataset.tab==='debts'){loadDebtsTable();loadDebtPaymentsTable();}
       if(b.dataset.tab==='commands'){loadBudgetsTable();}
     });
   });
@@ -23,9 +22,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
   try{
     await seedData(); await loadCategoriesSelect(); await loadCommandsTable(); await loadCategoriesTable();
     setupTabNavigation(); setupChat(); setupCommandForm(); setupCategoryForm(); setupCreateCmdForm();
-    setupCardForm(); setupInstallmentForm(); setupDebtForm(); setupRecurringForm(); setupFixedForm();
+    setupDebtForm(); setupFixedForm();
     setupEditTxForm(); setupBudgetForm(); setupTypeModal();
-    await loadCardSelect(); await loadFixedTable(); await loadBudgetsTable();
+    await loadFixedTable(); await loadBudgetsTable();
     await setupGlobalMonthFilter(); await refreshDashboard(); setupChartGlow(); renderChatHistory(); scrollChatToTop(); $('#chatInput').focus();
     $('#loadingScreen').classList.add('hidden');
   }catch(e){console.error(e);showNotification('Erro: '+e.message);}

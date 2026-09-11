@@ -22,15 +22,15 @@ if(window.Chart){
   _legendLabels.boxHeight=8;
 }
 async function refreshDashboard(){
-  const tx=await db.transactions.toArray(),cards=await db.cards.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray();
-  await renderSummaryCards(tx,cards,insts,debts);destroyAllCharts();
-  await renderChartBalanceLine(tx,insts,debts);renderChartExpenseCategory(tx,insts);renderChartIncomeCategory(tx);
-  renderChartMonthlyExpense(tx,insts);renderChartIncomePeriod(tx);renderChartExpensePeriod(tx);
-  await renderChartFutureCommitments(insts,debts);renderChartInvestmentLine(tx);
+  const tx=await db.transactions.toArray(),debts=await db.debts.toArray();
+  await renderSummaryCards(tx,debts);destroyAllCharts();
+  await renderChartBalanceLine(tx);renderChartExpenseCategory(tx);renderChartIncomeCategory(tx);
+  renderChartMonthlyExpense(tx);renderChartIncomePeriod(tx);renderChartExpensePeriod(tx);
+  renderChartInvestmentLine(tx);
   renderChartComparison(tx);
   renderChartTopExpense(tx);renderChartTopIncome(tx);
-  renderChartIndebtedness(insts,debts,cards);await renderChartCashFlow(tx,insts,debts);
-  dashTx=tx;dashInsts=insts;
+  await renderChartCashFlow(tx,debts);
+  dashTx=tx;
   setupDashPeriodBadge();
   const catModal=$('#categoryModal');
   if(catModal&&catModal.classList.contains('show'))await renderCategoryModal();
@@ -65,7 +65,7 @@ function attachPieLegend(chartId,labels,values,colors){
   }).join('');
 }
 
-async function renderSummaryCards(tx,cards,insts,debts){
+async function renderSummaryCards(tx,debts){
   const filter=dashboardFilter,isAll=filter==='all';
   const thisMonth=currentMonthKey(),targetMonth=isAll?thisMonth:filter;
   const periodTx=filterTxByMonth(tx,targetMonth),cutoffTx=filterTxUpToMonth(tx,filter);
@@ -74,33 +74,22 @@ async function renderSummaryCards(tx,cards,insts,debts){
   const balance=income-expense;
   const monthIncome=periodTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const monthExpense=periodTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const futureInstValue=insts.filter(i=>i.paidInstallments<i.installmentCount).reduce((s,i)=>s+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
+  const futureFixed=await getFutureMonthly();
+  const futureFixedTotal=futureFixed.reduce((s,v)=>s+v,0);
   const totalDebt=debts.filter(d=>d.currentAmount>0).reduce((s,d)=>s+d.currentAmount,0);
   const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
-  const monthlyCommitments=await getFutureMonthly(insts);
-  const projected=balance+avgIncome-avgExpense-(monthlyCommitments[0]||0);
-  const totalLimit=cards.reduce((s,c)=>s+(c.limit||0),0);
-  const allRecs=await db.recurrings.toArray();
+  const projected=balance+avgIncome-avgExpense-(futureFixed[0]||0);
   const allFixed=await db.fixedexpenses.toArray();
-  const usedLimit=cards.reduce((s,c)=>{
-    const cardInsts=insts.filter(i=>i.cardId===c.id&&i.paidInstallments<i.installmentCount);
-    const instUsed=cardInsts.reduce((sum,i)=>sum+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
-    const cardRecs=allRecs.filter(r=>r.cardId===c.id&&r.active);
-    const recUsed=cardRecs.reduce((sum,r)=>sum+r.amount,0);
-    return s+instUsed+recUsed;
-  },0);
-  const creditPct=totalLimit>0?Math.round(usedLimit/totalLimit*100):0;
   const overdueDebt=await getOverdueFixedTotal(allFixed);
   $('#dBalance').textContent=formatCurrency(balance);
   $('#dProjected').textContent=formatCurrency(projected);
   $('#dMonthIncome').textContent=formatCurrency(monthIncome);
   $('#dMonthExpense').textContent=formatCurrency(monthExpense);
-  $('#dFutureInstallments').textContent=formatCurrency(futureInstValue);
+  $('#dFutureInstallments').textContent=formatCurrency(futureFixedTotal);
   $('#dTotalDebt').textContent=formatCurrency(totalDebt);
   $('#dOverdueDebt').textContent=formatCurrency(overdueDebt);
   const fixedTotal=allFixed.filter(e=>e.active).reduce((s,e)=>s+e.amount,0);
   $('#dFixedExpenses').textContent=formatCurrency(fixedTotal);
-  $('#dCreditUsed').textContent=creditPct+'%';
 
   const budgets=await db.budgets.toArray();
   const alertsEl=$('#budgetAlerts');
@@ -108,8 +97,6 @@ async function renderSummaryCards(tx,cards,insts,debts){
     const monthTx=periodTx.filter(t=>t.type==='expense');
     const spentMap={};
     monthTx.forEach(t=>{spentMap[t.category]=(spentMap[t.category]||0)+t.amount;});
-    const instMap=installmentsByCategoryInMonth(insts,targetMonth);
-    for(const[cat,val]of Object.entries(instMap))spentMap[cat]=(spentMap[cat]||0)+val;
     let alertHtml='';
     for(const b of budgets){
       const spent=spentMap[b.category]||0;
@@ -140,38 +127,26 @@ function getAvgMonthly(tx,type,months){
   return vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:0;
 }
 
-async function getFutureMonthly(insts){
+async function getFutureMonthly(){
+  const exps=await db.fixedexpenses.toArray();
   const now=new Date(),map={};
   for(let i=0;i<12;i++){
     const d=new Date(now.getFullYear(),now.getMonth()+i+1,1);
     map[`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`]=0;
   }
-  for(const i of insts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments;p<i.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      if(map[key]!==undefined)map[key]+=i.installmentValue;
-    }
-  }
-  const all=await db.recurrings.toArray();
-  for(const rec of all){
-    if(!rec.active||!rec.startDate)continue;
-    const recStart=rec.startDate.substring(0,7);
-    for(const key of Object.keys(map)){
-      if(key>=recStart)map[key]+=rec.amount;
-    }
-  }
-  const fixedAll=await db.fixedexpenses.toArray();
-  for(const f of fixedAll){
+  for(const f of exps){
     if(!f.active)continue;
-    for(const key of Object.keys(map))map[key]+=f.amount;
+    const st=f.startMonth||(f.createdAt?f.createdAt.substring(0,7):'');
+    for(const key of Object.keys(map)){
+      if(st&&key<st)continue;
+      if(f.endMonth&&key>f.endMonth)continue;
+      map[key]+=f.amount;
+    }
   }
   return Object.values(map);
 }
 
-async function renderChartBalanceLine(tx,insts,debts){
+async function renderChartBalanceLine(tx){
   const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
   const sorted=[...base].sort((a,b)=>a.date.localeCompare(b.date));
   const daily={};let running=0;
@@ -180,7 +155,7 @@ async function renderChartBalanceLine(tx,insts,debts){
   if(!dates.length){makeChart('chartBalanceLine',{type:'line',data:{labels:['Sem dados'],datasets:[{data:[0],borderColor:'rgba(255,255,255,0.08)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   const lastDate=new Date(dates[dates.length-1]+'T12:00:00'),lastVal=vals[vals.length-1];
   const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
-  const months=await getFutureMonthly(insts);
+  const months=await getFutureMonthly();
   const projDates=[],projVals=[];
   let projBalance=lastVal;
   for(let i=1;i<=12;i++){
@@ -202,12 +177,9 @@ async function renderChartBalanceLine(tx,insts,debts){
   });
 }
 
-function renderChartExpenseCategory(tx,insts){
-  const filter=dashboardFilter,target=filter==='all'?currentMonthKey():filter;
+function renderChartExpenseCategory(tx){
   const groups={};
-  for(const t of filterTxByMonth(tx,filter).filter(t=>t.type==='expense'))groups[t.category]=(groups[t.category]||0)+t.amount;
-  const instMap=installmentsByCategoryInMonth(insts,target);
-  for(const[cat,val]of Object.entries(instMap))groups[cat]=(groups[cat]||0)+val;
+  for(const t of filterTxByMonth(tx,dashboardFilter).filter(t=>t.type==='expense'))groups[t.category]=(groups[t.category]||0)+t.amount;
   let labels=Object.keys(groups),data=Object.values(groups);
   const sorted=labels.map((l,i)=>({l,v:data[i]})).sort((a,b)=>b.v-a.v);
   labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
@@ -228,25 +200,16 @@ function renderChartIncomeCategory(tx){
   attachPieLegend('chartIncomeCategory',labels,data,colors);
 }
 
-function renderChartMonthlyExpense(tx,insts){
+function renderChartMonthlyExpense(tx){
   if(dashboardFilter!=='all'){
     const target=dashboardFilter;
-    const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)+installmentsTotalInMonth(insts,target);
+    const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     if(total===0){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
     makeChart('chartMonthlyExpense',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Despesas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const monthly={};
   for(const t of tx.filter(t=>t.type==='expense')){const m=t.date.substring(0,7);monthly[m]=(monthly[m]||0)+t.amount;}
-  for(const i of insts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments;p<i.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,1);
-      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      monthly[key]=(monthly[key]||0)+i.installmentValue;
-    }
-  }
   const months=Object.keys(monthly).sort().slice(-12),values=months.map(m=>monthly[m]);
   if(!months.length){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartMonthlyExpense',{type:'bar',data:{labels:months,datasets:[{label:'Despesas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
@@ -278,46 +241,6 @@ function renderChartExpensePeriod(tx){
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
   if(!labels.length){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartExpensePeriod',{type:'bar',data:{labels,datasets:[{label:'Saídas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
-}
-
-async function renderChartFutureCommitments(insts,debts){
-  const now=new Date(),map={};
-  for(let i=0;i<12;i++){const d=new Date(now.getFullYear(),now.getMonth()+i+1,1);map[`${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`]={installments:0,recurrings:0,fixed:0};}
-  const months=Object.keys(map);
-  for(const inst of insts){
-    if(inst.paidInstallments>=inst.installmentCount)continue;
-    const first=new Date(inst.firstInstallmentDate+'T12:00:00');
-    for(let p=inst.paidInstallments;p<inst.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-      const key=`${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-      if(map[key])map[key].installments+=inst.installmentValue;
-    }
-  }
-  const reccs=await db.recurrings.toArray();
-  for(const rec of reccs){
-    if(!rec.active||!rec.startDate)continue;
-    const recStart=rec.startDate.substring(0,7);
-    for(const label of months){
-      const [m,y]=label.split('/');
-      const key=`${y}-${m}`;
-      if(key>=recStart&&map[label])map[label].recurrings+=rec.amount;
-    }
-  }
-  const fixedAll=await db.fixedexpenses.toArray();
-  for(const f of fixedAll){
-    if(!f.active)continue;
-    for(const label of months){
-      if(map[label])map[label].fixed+=f.amount;
-    }
-  }
-  const installVals=months.map(m=>map[m].installments),recVals=months.map(m=>map[m].recurrings),fixedVals=months.map(m=>map[m].fixed);
-  makeChart('chartFutureCommitments',{
-    type:'bar',data:{labels:months,datasets:[
-      {label:'Parcelas',data:installVals,backgroundColor:'#8b5cf6',borderRadius:4},
-      {label:'Recorrentes',data:recVals,backgroundColor:'#fbbf24',borderRadius:4},
-      {label:'Contas Fixas',data:fixedVals,backgroundColor:'#34d399',borderRadius:4}
-    ]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true,pointStyle:'circle'}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}
-  });
 }
 
 function renderChartInvestmentLine(tx){
@@ -380,23 +303,7 @@ async function setupGlobalMonthFilter(){
   sel.addEventListener('change',()=>{dashboardFilter=sel.value;refreshDashboard();});
 }
 
-function renderChartIndebtedness(insts,debts,cards){
-  const totalInstDebt=insts.filter(i=>i.paidInstallments<i.installmentCount).reduce((s,i)=>s+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
-  const totalDebt=debts.reduce((s,d)=>s+d.currentAmount,0);
-  const creditUsed=cards.reduce((s,c)=>{
-    const cardInsts=insts.filter(i=>i.cardId===c.id&&i.paidInstallments<i.installmentCount);
-    return s+cardInsts.reduce((sum,i)=>sum+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
-  },0);
-  const labels=[],data=[],colors=[];
-  if(totalDebt>0){labels.push('Dívidas');data.push(totalDebt);colors.push('#f87171');}
-  if(totalInstDebt>0){labels.push('Parcelas a Pagar');data.push(totalInstDebt);colors.push('#818cf8');}
-  if(creditUsed>0){labels.push('Crédito Utilizado');data.push(creditUsed);colors.push('#ec4899');}
-  if(!data.length){makeChart('chartIndebtedness',{type:'doughnut',data:{labels:['Sem dívidas'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIndebtedness',[]);return;}
-  makeChart('chartIndebtedness',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
-  attachPieLegend('chartIndebtedness',labels,data,colors);
-}
-
-async function renderChartCashFlow(tx,insts,debts){
+async function renderChartCashFlow(tx,debts){
   const filter=dashboardFilter;
   const now=filter==='all'?new Date():new Date(parseInt(filter.split('-')[0]),parseInt(filter.split('-')[1])-1,1);
   const anchorKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -409,7 +316,7 @@ async function renderChartCashFlow(tx,insts,debts){
     const m=t.date.substring(0,7);
     if(monthly[m]!==undefined)monthly[m]+=t.type==='income'?t.amount:-t.amount;
   }
-  const future=await getFutureMonthly(insts);
+  const future=await getFutureMonthly();
   const months=Object.keys(monthly).sort();
   const pastMonths=months.filter(m=>m<=anchorKey);
   const startBalance=pastMonths.reduce((s,m)=>s+monthly[m],0);
@@ -450,13 +357,13 @@ function setupChartGlow(){
 
 // ===== MODAL PROJECTED =====
 async function openProjectedModal(){
-  const tx=await db.transactions.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray();
+  const tx=await db.transactions.toArray();
   const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
   const income=base.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense=base.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance=income-expense;
   const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
-  const monthly=await getFutureMonthly(insts);
+  const monthly=await getFutureMonthly();
   const now=new Date();
   let html='<table class="projected-table"><thead><tr><th>Mês</th><th>Saldo Inicial</th><th>Receita Média</th><th>Despesa Média</th><th>Compromissos</th><th>Saldo Final</th></tr></thead><tbody>';
   let saldo=balance;
@@ -480,118 +387,52 @@ async function openProjectedModal(){
 // ===== MODAL FUTURE COMMITMENTS =====
 async function openFutureInstallmentsModal(filter){
   filter=filter||'all';futureModalFilter=filter;
-  const allInsts=await db.installments.toArray(),allRecs=await db.recurrings.toArray(),cards=await db.cards.toArray();
-  const cardsMap={};for(const c of cards)cardsMap[c.id]=c;
+  const fixedAll=(await db.fixedexpenses.toArray()).filter(e=>e.active);
+  const allFixedPayments=await db.fixedpayments.toArray();
+  const paidFixed=new Set(allFixedPayments.map(p=>p.expenseId+':'+p.monthKey));
   const now=new Date();
   const currentKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   const monthData={};
-  let maxKey=currentKey;
-
-  // Collect installments
-  for(const inst of allInsts){
-    if(inst.paidInstallments>=inst.installmentCount)continue;
-    const first=new Date(inst.firstInstallmentDate+'T12:00:00');
-    for(let p=inst.paidInstallments||0;p<inst.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  for(const f of fixedAll){
+    const st=f.startMonth||(f.createdAt?f.createdAt.substring(0,7):currentKey);
+    const cursor=new Date(parseInt(st.split('-')[0]),parseInt(st.split('-')[1])-1,1);
+    const lastCursor=f.endMonth?new Date(parseInt(f.endMonth.split('-')[0]),parseInt(f.endMonth.split('-')[1])-1,1):new Date(now.getFullYear(),now.getMonth()+12,1);
+    while(cursor<=lastCursor){
+      const key=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`;
       if(!monthData[key])monthData[key]={total:0,items:[]};
-      monthData[key].items.push({type:'installment',cardName:cardsMap[inst.cardId]?.name||'-',description:inst.description,detail:`${p+1}/${inst.installmentCount}`,value:inst.installmentValue});
-      monthData[key].total+=inst.installmentValue;
-      if(key>maxKey)maxKey=key;
+      monthData[key].items.push({type:'fixed',id:f.id,monthKey:key,description:f.name,detail:'📄 fixa',value:f.amount});
+      monthData[key].total+=f.amount;
+      cursor.setMonth(cursor.getMonth()+1);
     }
   }
 
-  const hasRecs=allRecs.some(r=>r.active);
-  const fixedAll=await db.fixedexpenses.toArray();
-  const allFixedPayments=await db.fixedpayments.toArray();
-  const paidFixed=new Set(allFixedPayments.map(p=>p.expenseId+':'+p.monthKey));
-  const hasFixed=fixedAll.some(f=>f.active);
-  const maxHorizon=hasRecs||hasFixed;
-  if(maxHorizon){
-    const maxNow=new Date(now.getFullYear(),now.getMonth()+12,1);
-    const maxInst=Object.keys(monthData).length?new Date(parseInt(maxKey.split('-')[0]),parseInt(maxKey.split('-')[1])-1,1):now;
-    const end=maxNow>maxInst?maxNow:maxInst;
-    maxKey=`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}`;
-  }
-
-  // No data at all
-  if(!Object.keys(monthData).length&&!maxHorizon){
-    const infoEl=$('#futureInstallmentsInfo');
+  const infoEl=$('#futureInstallmentsInfo');
+  const allMonths=Object.keys(monthData).sort();
+  if(!allMonths.length){
     infoEl.innerHTML=`<div class="filter-bar"><span style="font-size:0.82rem;color:var(--text-muted)">Nenhum compromisso futuro cadastrado.</span></div>`;
-    $('#futureInstallmentsBody').innerHTML='<p class="empty-state">Cadastre compras parceladas, recorrentes ou contas fixas para ver o resumo aqui.</p>';
+    $('#futureInstallmentsBody').innerHTML='<p class="empty-state">Cadastre uma Conta Fixa com período (Início → Término, ex.: compra em 3 meses) para acompanhar aqui.</p>';
     $('#futureInstallmentsModal').classList.add('show');return;
   }
 
-  // Fill all months from current to maxKey
-  const allMonths=[];
-  let cursor=new Date(parseInt(currentKey.split('-')[0]),parseInt(currentKey.split('-')[1])-1,1);
-  const endDate=new Date(parseInt(maxKey.split('-')[0]),parseInt(maxKey.split('-')[1])-1,1);
-  while(cursor<=endDate){
-    const key=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`;
-    if(!monthData[key])monthData[key]={total:0,items:[]};
-    allMonths.push(key);
-    cursor.setMonth(cursor.getMonth()+1);
-  }
-
-  // Add recurring to all months
-  if(hasRecs){
-    for(const rec of allRecs){
-      if(!rec.active||!rec.startDate)continue;
-      const recStart=rec.startDate.substring(0,7);
-      for(const key of allMonths){
-        if(key>=recStart){
-          monthData[key].items.push({type:'recurring',cardName:cardsMap[rec.cardId]?.name||'-',description:rec.name,detail:'🔄 mensal',value:rec.amount});
-          monthData[key].total+=rec.amount;
-        }
-      }
-    }
-  }
-
-  // Add fixed expenses to all months
-  for(const f of fixedAll){
-    if(!f.active)continue;
-    for(const key of allMonths){
-      monthData[key].items.push({type:'fixed',id:f.id,monthKey:key,cardName:'',description:f.name,detail:'📄 fixa',value:f.amount});
-      monthData[key].total+=f.amount;
-    }
-  }
-
-  // Info bar
-  const currentLabel=`${meses[parseInt(currentKey.split('-')[1])-1]}/${currentKey.split('-')[0]}`;
-  const isPaidFixed=i=>i.type==='fixed'&&paidFixed.has(i.id+':'+i.monthKey);
+  const isPaidFixed=i=>paidFixed.has(i.id+':'+i.monthKey);
   const curMonthItems=(monthData[currentKey]?.items||[]);
-  const curTotal=curMonthItems.filter(i=>(filter==='all'||i.type===filter)&&!isPaidFixed(i)).reduce((s,i)=>s+i.value,0);
+  const curTotal=curMonthItems.filter(i=>!isPaidFixed(i)).reduce((s,i)=>s+i.value,0);
   let grandTotal=0,itemCount=0;
   for(const key of allMonths){
-    const items=(filter==='all'?monthData[key].items:monthData[key].items.filter(i=>i.type===filter)).filter(i=>!isPaidFixed(i));
+    const items=monthData[key].items.filter(i=>!isPaidFixed(i));
     grandTotal+=items.reduce((s,i)=>s+i.value,0);
     itemCount+=items.length;
   }
-  const infoEl=$('#futureInstallmentsInfo');
-  infoEl.innerHTML=`<div class="filter-bar">
-    <button class="filter-btn ${filter==='all'?'active':''}" onclick="openFutureInstallmentsModal('all')">Todos</button>
-    <button class="filter-btn ${filter==='installment'?'active':''}" onclick="openFutureInstallmentsModal('installment')">Parcelas</button>
-    <button class="filter-btn ${filter==='recurring'?'active':''}" onclick="openFutureInstallmentsModal('recurring')">Recorrentes</button>
-    <button class="filter-btn ${filter==='fixed'?'active':''}" onclick="openFutureInstallmentsModal('fixed')">Contas</button>
-    <span style="margin-left:auto;font-size:0.82rem;color:var(--text-secondary)">Mês atual (<strong>${currentLabel}</strong>): <strong style="color:var(--expense)">${formatCurrency(curTotal)}</strong> · Horizonte (${allMonths.length} mês${allMonths.length!==1?'es':''}): ${formatCurrency(grandTotal)}</span>
-  </div>`;
-
-  // Render
-  if(!allMonths.some(k=>monthData[k].items.some(i=>filter==='all'||i.type===filter))){
-    const fNames={installment:'Parcelas',recurring:'Recorrentes',fixed:'Contas Fixas'};
-    $('#futureInstallmentsBody').innerHTML=`<p class="empty-state">Nenhum item para o filtro "${fNames[filter]||''}".</p>`;
-    $('#futureInstallmentsModal').classList.add('show');return;
-  }
+  const currentLabel=`${meses[parseInt(currentKey.split('-')[1])-1]}/${currentKey.split('-')[0]}`;
+  infoEl.innerHTML=`<div class="filter-bar"><span style="font-size:0.82rem;color:var(--text-secondary)">Mês atual (<strong>${currentLabel}</strong>): <strong style="color:var(--expense)">${formatCurrency(curTotal)}</strong> · Horizonte (${allMonths.length} mês${allMonths.length!==1?'es':''}): ${formatCurrency(grandTotal)} (${itemCount} item${itemCount!==1?'s':''})</span></div>`;
 
   let html='';
   for(const key of allMonths){
     const [y,m]=key.split('-');
     const monthLabel=`${meses[parseInt(m)-1]}/${y}`;
-    let filtered=monthData[key].items;
-    if(filter!=='all')filtered=filtered.filter(i=>i.type===filter);
-    if(!filtered.length)continue;
+    const filtered=monthData[key].items;
     const monthTotal=filtered.filter(i=>!isPaidFixed(i)).reduce((s,i)=>s+i.value,0);
     html+=`<div class="invoice-month">
       <div class="invoice-month-header">
@@ -599,17 +440,13 @@ async function openFutureInstallmentsModal(filter){
         <span class="invoice-month-total">${formatCurrency(monthTotal)}</span>
       </div>
       <table class="detail-table" style="margin-top:0.3rem">
-        <thead><tr><th>Cartão</th><th>Descrição</th><th>Detalhe</th><th>Valor</th><th>Ação</th></tr></thead>
+        <thead><tr><th>Descrição</th><th>Detalhe</th><th>Valor</th><th>Ação</th></tr></thead>
         <tbody>${filtered.map(i=>{
-          let action='';
-          if(i.type==='fixed'){
-            const paid=paidFixed.has(i.id+':'+i.monthKey);
-            action=paid
-              ? `<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:var(--income);border-color:rgba(34,197,94,0.3)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">✅ Paga</button>`
-              : `<button class="btn-sm" style="background:rgba(245,158,11,0.15);color:#fbbf24;border-color:rgba(245,158,11,0.35)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">💰 Pagar</button>`;
-          }
-          const paidStyle=(i.type==='fixed'&&paidFixed.has(i.id+':'+i.monthKey))?'style="opacity:0.55"':'';
-          return `<tr ${paidStyle}><td class="card-name">${i.cardName}</td><td>${i.description}</td><td>${i.detail}</td><td style="color:var(--expense)">${formatCurrency(i.value)}</td><td>${action}</td></tr>`;
+          const paid=isPaidFixed(i);
+          const action=paid
+            ? `<button class="btn-sm" style="background:rgba(34,197,94,0.12);color:var(--income);border-color:rgba(34,197,94,0.3)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">✅ Paga</button>`
+            : `<button class="btn-sm" style="background:rgba(245,158,11,0.15);color:#fbbf24;border-color:rgba(245,158,11,0.35)" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">💰 Pagar</button>`;
+          return `<tr ${paid?'style="opacity:0.55"':''}><td>${i.description}</td><td>${i.detail}</td><td style="color:var(--expense)">${formatCurrency(i.value)}</td><td>${action}</td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -661,14 +498,6 @@ async function openTypeModal(type){
   $('#typeModalDot').style.background=pickColor(type);
   $('#typeModalTitle').textContent=type==='income'?'💰 Receitas':'💸 Despesas';
   const months=new Set(dashTx.map(t=>t.date.substring(0,7)));
-  for(const i of dashInsts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,1);
-      months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-    }
-  }
   const sel=$('#typeModalPeriod');
   const defaultPeriod=(dashboardFilter!=='all'&&months.has(dashboardFilter))?dashboardFilter:'all';
   sel.innerHTML='<option value="all">📅 Todos os períodos</option>'+[...months].sort().reverse().map(m=>`<option value="${m}">${formatMonthLabel(m)}</option>`).join('');
@@ -687,7 +516,7 @@ function renderTypeModal(){
   const{type}=typeModalCtx;
   const period=$('#typeModalPeriod').value,cat=$('#typeModalCategory').value;
   const q=($('#typeModalSearch').value||'').trim().toLowerCase();
-  const tx=dashTx,insts=dashInsts;
+  const tx=dashTx;
   const items=[],groups={};
   let grand=0;
   for(const t of tx){
@@ -698,24 +527,6 @@ function renderTypeModal(){
     items.push({date:t.date,amount:t.amount,description:t.description||'',category:t.category,kind:'tx',id:t.id});
     groups[t.category]=(groups[t.category]||0)+t.amount;
     grand+=t.amount;
-  }
-  if(type==='expense'){
-    for(const i of insts){
-      if(i.paidInstallments>=i.installmentCount)continue;
-      if(cat!=='all'&&i.category!==cat)continue;
-      const first=new Date(i.firstInstallmentDate+'T12:00:00');
-      for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
-        const dd=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-        const dateStr=`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
-        const m=dateStr.substring(0,7);
-        if(period!=='all'&&m!==period)continue;
-        const desc=`${i.description} (parcela ${p+1}/${i.installmentCount})`;
-        if(q&&!`${desc} ${i.category||''}`.toLowerCase().includes(q))continue;
-        items.push({date:dateStr,amount:i.installmentValue,description:desc,category:i.category,kind:'parcela',installmentId:i.id});
-        groups[i.category]=(groups[i.category]||0)+i.installmentValue;
-        grand+=i.installmentValue;
-      }
-    }
   }
   items.sort((a,b)=>b.date.localeCompare(a.date)||(b.id||0)-(a.id||0));
   renderTypeModalGrid(type,groups,grand);
@@ -731,14 +542,11 @@ function renderTypeModal(){
   body.innerHTML=items.map(t=>{
     const c=cats.find(x=>x.name===t.category);
     const color=c?.color||pickColor(type);
-    const badge=t.kind==='parcela'?'<span class="badge-expense">parcela</span> ':'';
-    const actions=t.kind==='tx'
-      ?`<button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar">✏️</button> <button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button>`
-      :`<button class="btn-sm" onclick="markInstallmentPaid(${t.installmentId},1)" title="Pagar parcela">✅</button>`;
+    const actions=`<button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar">✏️</button> <button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button>`;
     return `<tr>
       <td>${formatDate(t.date)}</td>
       <td><span class="extract-cat"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color}"></span>${escapeHtml(t.category)}</span></td>
-      <td class="extract-desc" title="${escapeHtml(t.description)}">${badge}${escapeHtml(t.description)}</td>
+      <td class="extract-desc" title="${escapeHtml(t.description)}">${escapeHtml(t.description)}</td>
       <td style="text-align:right;color:${type==='income'?'var(--income)':'var(--expense)'}">${type==='income'?'+ ':'- '}${formatCurrency(t.amount)}</td>
       <td style="text-align:right">${actions}</td>
     </tr>`;
@@ -787,14 +595,6 @@ async function openCategoryModal(category,type){
   $('#categoryModalDot').style.background=color;
   $('#categoryModalTitle').textContent=category;
   const months=new Set(dashTx.map(t=>t.date.substring(0,7)));
-  for(const i of dashInsts){
-    if(i.paidInstallments>=i.installmentCount)continue;
-    const first=new Date(i.firstInstallmentDate+'T12:00:00');
-    for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
-      const d=new Date(first.getFullYear(),first.getMonth()+p,1);
-      months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-    }
-  }
   const sel=$('#categoryModalPeriod');
   const defaultPeriod=(dashboardFilter!=='all'&&months.has(dashboardFilter))?dashboardFilter:'all';
   sel.innerHTML='<option value="all">📅 Todos os períodos</option>'+[...months].sort().reverse().map(m=>`<option value="${m}">${formatMonthLabel(m)}</option>`).join('');
@@ -807,7 +607,7 @@ async function renderCategoryModal(){
   if(!categoryModalCtx)return;
   const{category,type}=categoryModalCtx;
   const period=$('#categoryModalPeriod').value;
-  const tx=dashTx,insts=dashInsts;
+  const tx=dashTx;
   const items=[],monthly={};
   for(const t of tx){
     if(t.type!==type||t.category!==category)continue;
@@ -815,20 +615,6 @@ async function renderCategoryModal(){
     items.push({date:t.date,amount:t.amount,description:t.description||'',kind:'tx',id:t.id});
     const m=t.date.substring(0,7);
     monthly[m]=(monthly[m]||0)+t.amount;
-  }
-  if(type==='expense'){
-    for(const i of insts){
-      if(i.category!==category||i.paidInstallments>=i.installmentCount)continue;
-      const first=new Date(i.firstInstallmentDate+'T12:00:00');
-      for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
-        const dd=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-        const dateStr=`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
-        const m=dateStr.substring(0,7);
-        if(period!=='all'&&m!==period)continue;
-        items.push({date:dateStr,amount:i.installmentValue,description:`${i.description} (parcela ${p+1}/${i.installmentCount})`,kind:'parcela',installmentId:i.id});
-        monthly[m]=(monthly[m]||0)+i.installmentValue;
-      }
-    }
   }
   items.sort((a,b)=>b.date.localeCompare(a.date));
   const total=items.reduce((s,i)=>s+i.amount,0);
@@ -857,13 +643,10 @@ async function renderCategoryModal(){
   const itemsEl=$('#categoryModalItems');
   if(!items.length){itemsEl.innerHTML='<p class="empty-state">Nenhum lançamento encontrado.</p>';return;}
   itemsEl.innerHTML=items.map(i=>{
-    const badge=i.kind==='parcela'?'<span class="cat-modal-badge">parcela</span>':'';
-    const actions=i.kind==='tx'
-      ?`<button class="btn-sm" onclick="editTransaction(${i.id})" title="Editar">✏️</button><button class="btn-sm danger" onclick="deleteTransaction(${i.id})" title="Excluir">✕</button>`
-      :`<button class="btn-sm" onclick="markInstallmentPaid(${i.installmentId},1)" title="Pagar parcela">✅</button>`;
+    const actions=`<button class="btn-sm" onclick="editTransaction(${i.id})" title="Editar">✏️</button><button class="btn-sm danger" onclick="deleteTransaction(${i.id})" title="Excluir">✕</button>`;
     return `<div class="cat-modal-item">
       <span class="cat-modal-item-date">${formatDate(i.date)}</span>
-      <span class="cat-modal-item-desc">${badge?badge+' ':''}${escapeHtml(i.description)}</span>
+      <span class="cat-modal-item-desc">${escapeHtml(i.description)}</span>
       <span class="cat-modal-item-value" style="color:${type==='income'?'var(--income)':'var(--expense)'}">${type==='income'?'+ ':'- '}${formatCurrency(i.amount)}</span>
       ${actions}
     </div>`;

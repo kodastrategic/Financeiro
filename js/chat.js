@@ -62,17 +62,6 @@ function selectAutocomplete(input,box){
 }
 function hideAutocomplete(b){b.style.display='none';}
 
-async function markInstallmentPaid(id,count){
-  const inst=await db.installments.get(id);
-  if(!inst)return;
-  inst.paidInstallments=(inst.paidInstallments||0)+count;
-  await db.installments.put(inst);
-  const tx={type:'expense',category:'Contas Fixas',description:`Parcela ${inst.paidInstallments}/${inst.installmentCount} - ${inst.description}`,amount:inst.installmentValue,date:todayLocal(),command:'fatura',createdAt:new Date().toISOString()};
-  await db.transactions.add(tx);
-  await refreshDashboard();renderChatHistory();loadInstallmentsTable();scheduleBackup();
-  showNotification(`✅ Pagamento: ${inst.description} (${inst.paidInstallments}/${inst.installmentCount})`);
-}
-
 async function processCommand(text){
   const parsed=parseCommand(text);
   if(!parsed){
@@ -213,8 +202,6 @@ async function renderChatBanner(){
   const el=$('#chatAlertBanner');if(!el)return;
   try{
     const all=await db.transactions.toArray();
-    const insts=await db.installments.toArray();
-    const recs=await db.recurrings.toArray();
     const fixedAll=await db.fixedexpenses.toArray();
     const fixedPays=await db.fixedpayments.toArray();
     const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
@@ -222,22 +209,12 @@ async function renderChatBanner(){
     const cur=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const paidSet=new Set(fixedPays.map(p=>p.expenseId+':'+p.monthKey));
     let total=0;
-    // Parcelas com vencimento no mês atual
-    for(const i of insts){
-      if(i.paidInstallments>=i.installmentCount)continue;
-      const first=new Date(i.firstInstallmentDate+'T12:00:00');
-      for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
-        const d=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
-        if(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===cur){total+=i.installmentValue;break;}
-      }
-    }
-    // Recorrentes ativas já iniciadas
-    for(const r of recs){
-      if(r.active&&r.startDate&&r.startDate.substring(0,7)<=cur){total+=r.amount;}
-    }
-    // Contas fixas ativas (exceto as já pagas no mês)
     for(const f of fixedAll){
-      if(f.active&&!paidSet.has(f.id+':'+cur)){total+=f.amount;}
+      if(!f.active)continue;
+      const st=f.startMonth||(f.createdAt?f.createdAt.substring(0,7):cur);
+      if(cur<st)continue;
+      if(f.endMonth&&cur>f.endMonth)continue;
+      if(!paidSet.has(f.id+':'+cur)){total+=f.amount;}
     }
     if(total<=0){el.style.display='none';return;}
     const monthName=MESES_EXT[now.getMonth()];

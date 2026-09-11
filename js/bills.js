@@ -1,57 +1,37 @@
-// ===== RECURRINGS =====
-function setupRecurringForm(){
-  $('#recStartDate').value=todayLocal();
-  $('#recurringForm').addEventListener('submit',async(e)=>{
-    e.preventDefault();
-    const name=$('#recName').value.trim(),amount=parseFloat($('#recAmount').value)||0;
-    const cardId=parseInt($('#recCard').value)||null,category=$('#recCategory').value;
-    const startDate=$('#recStartDate').value,active=$('#recActive').checked;
-    if(!name||!amount||!startDate)return showNotification('Preencha nome, valor e data.');
-    await db.recurrings.add({name,amount,cardId,category,startDate,active,createdAt:new Date().toISOString()});
-    $('#recurringForm').reset();$('#recStartDate').value=todayLocal();$('#recActive').checked=true;
-    await loadRecurringsTable();showNotification(`"${name}" adicionado!`);scheduleBackup();
-  });
-}
-async function loadRecurringsTable(){
-  const recs=await db.recurrings.toArray(),cards=await db.cards.toArray();
-  const tb=$('#recBody'),em=$('#emptyRec');
-  if(!recs.length){tb.innerHTML='';em.style.display='block';return;}
-  em.style.display='none';
-  tb.innerHTML=recs.map(r=>{
-    const card=cards.find(c=>c.id===r.cardId);
-    const statusLabel=r.active?'Ativo':'Pausado';
-    const statusBadge=r.active?'badge-income':'badge-warning';
-    return `<tr><td>${escapeHtml(r.name)}</td><td>${formatCurrency(r.amount)}</td><td>${card?escapeHtml(card.name):'-'}</td><td>${escapeHtml(r.category)}</td><td><span class="${statusBadge}">${statusLabel}</span></td><td><button class="btn-sm" onclick="toggleRecurring(${r.id})">${r.active?'Pausar':'Ativar'}</button><button class="btn-sm danger" onclick="deleteRecurring(${r.id})">Excluir</button></td></tr>`;
-  }).join('');
-}
-async function toggleRecurring(id){
-  const r=await db.recurrings.get(id);if(!r)return;
-  r.active=!r.active;await db.recurrings.put(r);
-  await loadRecurringsTable();showNotification(r.active?'Ativado.':'Pausado.');scheduleBackup();
-}
-async function deleteRecurring(id){
-  if(!confirm('Excluir compra recorrente?'))return;
-  await db.recurrings.delete(id);await loadRecurringsTable();showNotification('Excluída.');scheduleBackup();
-}
-
 // ===== FIXED EXPENSES =====
 function setupFixedForm(){
+  $('#fixedStartMonth').value=todayLocal().substring(0,7);
   $('#fixedForm').addEventListener('submit',async(e)=>{
     e.preventDefault();
     const name=$('#fixedName').value.trim(),amount=parseFloat($('#fixedAmount').value)||0;
     const dueDay=parseInt($('#fixedDueDay').value)||null,category=$('#fixedCategory').value;
+    const startMonth=$('#fixedStartMonth').value||todayLocal().substring(0,7);
+    const endMonth=$('#fixedEndMonth').value||null;
     const active=$('#fixedActive').checked;
     if(!name||!amount)return showNotification('Preencha nome e valor.');
-    await db.fixedexpenses.add({name,amount,dueDay,category,active,createdAt:new Date().toISOString()});
-    $('#fixedForm').reset();$('#fixedActive').checked=true;
+    if(endMonth&&endMonth<startMonth)return showNotification('Término deve ser depois do início.');
+    await db.fixedexpenses.add({name,amount,dueDay,category,active,startMonth,endMonth,createdAt:new Date().toISOString()});
+    $('#fixedForm').reset();$('#fixedActive').checked=true;$('#fixedStartMonth').value=todayLocal().substring(0,7);
     await loadFixedTable();showNotification(`"${name}" adicionado!`);scheduleBackup();
   });
 }
+function formatMonthRange(exp){
+  const st=exp.startMonth||(exp.createdAt?exp.createdAt.substring(0,7):'');
+  return `${st?formatMonthLabel(st):'-'}${exp.endMonth?` → ${formatMonthLabel(exp.endMonth)}`:' → contínua'}`;
+}
+function fixedAppliesMonth(exp,monthKey){
+  if(!exp.active)return false;
+  const st=exp.startMonth||(exp.createdAt?exp.createdAt.substring(0,7):'');
+  if(st&&monthKey<st)return false;
+  if(exp.endMonth&&monthKey>exp.endMonth)return false;
+  return true;
+}
 async function loadFixedTable(){
   const exps=await db.fixedexpenses.toArray(),tb=$('#fixedBody'),em=$('#emptyFixed');
-  if(!exps.length){tb.innerHTML='';em.style.display='block';return;}
-  em.style.display='none';
-  tb.innerHTML=exps.map(e=>`<tr><td>${escapeHtml(e.name)}</td><td>${formatCurrency(e.amount)}</td><td>${e.dueDay?'Dia '+e.dueDay:'-'}</td><td>${escapeHtml(e.category)}</td><td><span class="${e.active?'badge-income':'badge-warning'}">${e.active?'Ativo':'Pausado'}</span></td><td><button class="btn-sm" onclick="toggleFixed(${e.id})">${e.active?'Pausar':'Ativar'}</button><button class="btn-sm danger" onclick="deleteFixed(${e.id})">Excluir</button></td></tr>`).join('');
+  if(!tb)return;
+  if(!exps.length){tb.innerHTML='';if(em)em.style.display='block';return;}
+  if(em)em.style.display='none';
+  tb.innerHTML=exps.map(e=>`<tr><td>${escapeHtml(e.name)}</td><td>${formatCurrency(e.amount)}</td><td>${formatMonthRange(e)}</td><td>${escapeHtml(e.category)}</td><td><span class="${e.active?'badge-income':'badge-warning'}">${e.active?'Ativo':'Pausado'}</span></td><td><button class="btn-sm" onclick="toggleFixed(${e.id})">${e.active?'Pausar':'Ativar'}</button><button class="btn-sm danger" onclick="deleteFixed(${e.id})">Excluir</button></td></tr>`).join('');
 }
 async function toggleFixed(id){
   const e=await db.fixedexpenses.get(id);if(!e)return;
@@ -89,9 +69,11 @@ function getUnpaidCompetencias(exp,paysSet,curKey,fromKey){
   if(!exp.active)return [];
   const out=[];
   const today=todayLocal();
-  const start=fromKey||(exp.createdAt?exp.createdAt.substring(0,7):addMonths(curKey,-60));
+  const start=fromKey||exp.startMonth||(exp.createdAt?exp.createdAt.substring(0,7):addMonths(curKey,-60));
+  const end=exp.endMonth||null;
+  if(end&&start>end)return [];
   let key=start,k=0;
-  while(key<=curKey&&k<360){
+  while(key<=curKey&&k<360&&(!end||key<=end)){
     if(!paysSet.has(exp.id+':'+key)){
       const dueDate=getFixDueDate(exp,key);
       if(dueDate<today)out.push({monthKey:key,dueDate});
@@ -147,11 +129,11 @@ async function openFixedModal(monthKey){
   $('#fixedModalMonth').textContent=monthLabel;
 
   const exps=await db.fixedexpenses.toArray();
-  const active=exps.filter(e=>e.active);
+  const active=exps.filter(e=>fixedAppliesMonth(e,monthKey));
   if(!active.length){
     renderFixedNav(monthKey);
-    $('#fixedModalInfo').innerHTML='<span style="color:var(--text-muted);font-size:0.82rem">Nenhuma conta fixa ativa.</span>';
-    $('#fixedModalBody').innerHTML='<p class="empty-state">Ative contas no painel Contas Fixas.</p>';
+    $('#fixedModalInfo').innerHTML='<span style="color:var(--text-muted);font-size:0.82rem">Nenhuma conta fixa neste mês.</span>';
+    $('#fixedModalBody').innerHTML='<p class="empty-state">Não há contas fixas ativas com competência neste mês.</p>';
     $('#fixedModal').classList.add('show');return;
   }
 
@@ -187,7 +169,7 @@ async function openFixedModal(monthKey){
   const allPays=await db.fixedpayments.toArray();
   const paysSet=new Set(allPays.map(p=>p.expenseId+':'+p.monthKey));
   const overdue=[];
-  for(const e of active){
+  for(const e of exps.filter(e=>e.active)){
     const unpaid=getUnpaidCompetencias(e,paysSet,monthKey);
     for(const u of unpaid){
       if(u.monthKey===monthKey)continue;
@@ -245,7 +227,7 @@ async function toggleFixedExpense(expenseId,monthKey){
 }
 async function toggleAllFixed(monthKey){
   const exps=await db.fixedexpenses.toArray();
-  const active=exps.filter(e=>e.active);
+  const active=exps.filter(e=>fixedAppliesMonth(e,monthKey));
   const payments=await db.fixedpayments.where('monthKey').equals(monthKey).toArray();
   const paidIds=new Set(payments.map(p=>p.expenseId));
   const allPaid=active.every(e=>paidIds.has(e.id));

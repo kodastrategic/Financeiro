@@ -50,9 +50,8 @@ finance-app/
 │   ├── chat.js           # Chat de comandos, autocomplete, editor de transação
 │   ├── dashboard.js      # Dashboard, 13 gráficos, extrato e modais de dashboard
 │   ├── commands.js       # Comandos, categorias, orçamentos, modal de criação
-│   ├── cards.js          # Cartões e modal de fatura
-│   ├── debts.js          # Parcelas (installments) e dívidas
-│   ├── bills.js          # Contas fixas, recorrentes e lógica de atraso
+│   ├── debts.js          # Dívidas
+│   ├── bills.js          # Contas fixas com período (início/término) e lógica de atraso
 │   ├── data.js           # Seed, backup, export/import, relatório
 │   └── main.js           # Init (DOMContentLoaded) e navegação de abas
 ├── README.md             # Este arquivo
@@ -74,8 +73,8 @@ finance-app/
 - Histórico completo com saldo por data, botões editar/excluir
 
 ### 2️⃣ Dashboard Financeiro
-- **Cards de resumo**: Saldo, Projetado, Dívidas, Receita/Despesa do Mês, Contas Fixas, Parcelas Futuras, Crédito Usado
-- **11 gráficos**: Evolução do Saldo, Gastos/Receitas por Categoria, Gastos/Receitas Mensais, Compromissos Futuros, Investimentos, Comparação Mensal, Top Despesas/Receitas, Endividamento, Fluxo de Caixa
+- **Cards de resumo**: Saldo, Projetado, Dívidas, Receita/Despesa do Mês, Contas Fixas, Compromissos Futuros, Em Atraso
+- **9 gráficos**: Evolução do Saldo, Gastos/Receitas por Categoria, Gastos/Receitas Mensais, Investimentos, Comparação Mensal, Top Despesas/Receitas, Fluxo de Caixa (projetado)
 - **Orçamentos**: alerta visual quando categoria atinge 80%+ do limite
 
 ### 3️⃣ Aba Comandos
@@ -84,11 +83,8 @@ finance-app/
 - Orçamentos mensais por categoria
 - Categorias com paleta de cores inteligente: receitas→tons frios, despesas→tons quentes
 
-### 4️⃣ Cartões, Contas e Dívidas (abas)
-- **Cartões**: gestão com limite, fechamento/vencimento, modal de fatura mensal
-- **Contas Fixas**: despesas mensais recorrentes sem cartão, pagamento individual ou em lote
-- **Compras Recorrentes**: assinaturas vinculadas a cartão
-- **Compras Parceladas**: cadastro com cálculo automático de parcela, vínculo com cartão
+### 4️⃣ Contas e Dívidas (abas)
+- **Contas Fixas**: despesas mensais com **Início/Término** — para compras parceladas cadastre uma conta fixa com período (ex.: Início 2026-09 e Término 2026-11 = 3 meses); pagamento individual ou em lote, competência mensal e seção de atrasados
 - **Dívidas**: simplificadas, pagamento parcial cria transação automaticamente
 
 ### 5️⃣ Importação / Exportação
@@ -105,11 +101,10 @@ finance-app/
 - **Redundância eliminada**: o card "Receita do Mês" (que repetia o total da seção "Receitas por Categoria") agora abre o modal de receitas — um só lugar, um só número
 - Cards que **abrem detalhe**:
   - `💰 Receitas do Mês` → `openTypeModal('income')` — total por categoria (grid) + lista de lançamentos com filtros (período, categoria, busca)
-  - `📉 Despesas do Mês` → `openTypeModal('expense')` — idem, incluindo parcelas a pagar
+  - `📉 Despesas do Mês` → `openTypeModal('expense')` — idem
   - `💳 Dívidas` → abre a aba Dívidas (`openTab('debts')`)
-  - `🏦 Crédito Usado` → abre a aba Cartões (`openTab('cards')`)
-  - `📈 Saldo Projetado`, `📄 Contas Fixas`, `📅 Parcelas Futuras`, `⚠️ Em Atraso` já abriam modais
-- Modal `#typeModal` (seção "DASHBOARD V2" em `js/dashboard.js`): cluster de categorias com % e mini-barra (clique aprofunda no modal da categoria) + tabela detalhada com editar/excluir (despesas com parcela ✅)
+  - `📈 Saldo Projetado`, `📄 Contas Fixas`, `📅 Compromissos Futuros`, `⚠️ Em Atraso` já abriam modais
+- Modal `#typeModal` (seção "DASHBOARD V2" em `js/dashboard.js`): cluster de categorias com % e mini-barra (clique aprofunda no modal da categoria) + tabela detalhada com editar/excluir
 - Navegação por abas via `openTab()` em `js/main.js`; busca global `#dashSearch` movida para dentro do modal (cada tipo tem sua busca)
 - Modal de categoria re-renderiza após refresh se estiver aberto (idem para `#typeModal`)
 
@@ -125,7 +120,7 @@ finance-app/
 - JS: `script.js` foi **dividido em módulos** em `js/` (globals, utils, chat, dashboard, commands, cards, debts, bills, data, main) — `setupTypeModal`, `openTypeModal`, `renderTypeModal`, `renderTypeModalGrid`, `openCategoryModal`, `renderCategoryModal`, `setupDashPeriodBadge` em `js/dashboard.js` (seção "DASHBOARD V2"); `openTab` em `js/main.js`
 
 ### Testes
-- Validação com navegador headless + servidor local contra o banco real: 22 cards de categoria, 228 lançamentos no modal por tipo, 13 gráficos renderizados, sem erro fatal de JS
+- Validação com navegador headless + servidor local contra o banco real: 22 cards de categoria, 228 lançamentos no modal por tipo, 13 gráficos renderizados, sem erro fatal de JS (validação à época)
 
 ---
 
@@ -158,6 +153,33 @@ finance-app/
 - Screenshots de referência: `shot_dash.png`, `shot_modal.png`, `shot_bills.png`, `shot_chat.png` (gerados em ambiente headless na validação)
 
 ---
+
+## 🔧 Alterações da Sessão (11/09/2026) — Só Contas Fixas (fim de Cartões/Recorrentes)
+
+### Removida a complexidade de cartão
+- **Aba "Cartões" removida** do app (form, tabela, modal de fatura e `invoicepayments` saem da UI)
+- **"Compras Recorrentes" removidas** do app
+- **"Compras Parceladas" removidas** do app — compras em parcelas agora são cadastradas como **Conta Fixa com período**: campo **Início** (mês da 1ª cobrança) e **Término** (opcional) no formulário de Contas Fixas; ex.: Início 2026-09 → Término 2026-11 = 3 parcelas
+- Dados antigos (cartões, parcelas, recorrentes, faturas) **continuam no banco/export/import**, apenas ficam fora da interface
+- `js/cards.js` removido; `loadCardsTable`, `loadCardSelect`, `loadInstallmentsTable`, `loadRecurringsTable`, `setupCardForm/Installment/Recurring`, `markInstallmentPaid`, `openInvoiceModal` e helpers de parcela removidos dos demais módulos
+
+### Contas Fixas mês-conscientes
+- Cada conta fixa passa a valer de `startMonth` até `endMonth` (ou contínua se sem término) — `fixedAppliesMonth(exp, monthKey)` em `js/bills.js`
+- `getUnpaidCompetencias` considera o início/término; tabela de contas ganhou coluna **Período** (`formatMonthRange`)
+- Dois novos campos no banco: `fixedexpenses.startmonth` e `fixedexpenses.endmonth` (TEXT). **Aplicar no SQL editor do Supabase**:
+  ```sql
+  ALTER TABLE fixedexpenses ADD COLUMN IF NOT EXISTS startmonth TEXT;
+  ALTER TABLE fixedexpenses ADD COLUMN IF NOT EXISTS endmonth TEXT;
+  ```
+
+### Dashboard
+- Card **"Parcelas Futuras"** → **"📅 Compromissos Futuros"** (mesmo id `dFutureInstallments`) — soma dos próximos 12 meses de contas fixas (respeitando início/término)
+- Removidos gráficos **Compromissos Futuros** (`chartFutureCommitments`) e **Endividamento** (`chartIndebtedness`) e o card **"Crédito Usado"** (`dCreditUsed`)
+- Modais `#typeModal`, `#categoryModal`, `#projectedModal` e `#futureInstallmentsModal` agora usam **somente** transações e contas fixas (sem parcelas/recorrentes); modais de tipo/categoria sem coluna Cartão e sem ações de parcela
+
+### Testes
+- `node --check` em todos os `js/*.js`
+- Validação headless via CDP: dashboard com **12 canvas** (11 no corpo + 1 do modal de categoria), abas sem "Cartões", zero exceções de JS
 
 ## 🔧 Alterações da Sessão (21/07/2026)
 

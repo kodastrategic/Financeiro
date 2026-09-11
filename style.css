@@ -709,24 +709,28 @@ nav {
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
 .chart-header h3 { margin-bottom: 0; }
 
-.chart-month-filter {
+.chart-month-filter,
+.modal-subheader select {
   appearance: none;
   -webkit-appearance: none;
-  padding: 0.32rem 1.9rem 0.32rem 0.7rem;
-  background-color: var(--bg-secondary);
+  height: 2.15rem;
+  padding: 0.3rem 1.9rem 0.3rem 0.75rem;
+  background-color: var(--bg-primary);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa6b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.6rem center;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   outline: none;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.chart-month-filter:focus { border-color: var(--accent); }
-.chart-month-filter option { background: var(--bg-elevated); color: var(--text-primary); }
+.chart-month-filter:focus,
+.modal-subheader select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18); }
+.chart-month-filter option,
+.modal-subheader select option { background: var(--bg-elevated); color: var(--text-primary); }
 
 /* ===== COMMANDS / CARDS / BILLS / DEBTS panels ===== */
 #commands { padding: 1.6rem 2rem 2.5rem; max-width: 1240px; margin: 0 auto; width: 100%; }
@@ -1331,7 +1335,21 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   pointer-events: none;
   z-index: 1;
 }
-.extract-search-wrap input { width: 100%; padding-left: 1.8rem; cursor: text; }
+.extract-search-wrap input {
+  width: 100%;
+  height: 2.15rem;
+  padding: 0.3rem 0.8rem 0.3rem 1.9rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  outline: none;
+  cursor: text;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.extract-search-wrap input::placeholder { color: var(--text-muted); }
+.extract-search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18); }
 
 .extract-table { border-collapse: collapse; width: 100%; }
 .extract-table th, .extract-table td {

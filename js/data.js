@@ -29,7 +29,7 @@ async function clearAllData(){
   await db.cards.clear();await db.installments.clear();await db.debts.clear();await db.debtpayments.clear();await db.invoicepayments.clear();await db.recurrings.clear();await db.fixedexpenses.clear();await db.fixedpayments.clear();await db.budgets.clear();
   await seedData();
   await loadCategoriesSelect();await loadCommandsTable();await loadCategoriesTable();
-  await loadCardsTable();await loadInstallmentsTable();await loadDebtsTable();await loadRecurringsTable();await loadFixedTable();
+  await loadDebtsTable();await loadFixedTable();
   await refreshDashboard();renderChatHistory();scrollChatToTop();showNotification('Dados limpos.');scheduleBackup();
 }
 
@@ -64,23 +64,34 @@ async function importData(event){
     if(transactions?.length){for(const t of transactions){delete t.id;await db.transactions.add(t);}}
     $('#importInput').value='';
     await loadCategoriesSelect();await loadCommandsTable();await loadCategoriesTable();
-    await loadCardsTable();await loadInstallmentsTable();await loadDebtsTable();await loadRecurringsTable();await loadFixedTable();await loadCardSelect();await loadBudgetsTable();
+    await loadDebtsTable();await loadFixedTable();await loadBudgetsTable();
     await refreshDashboard();renderChatHistory();showNotification('Importado!');scheduleBackup();
   }catch(err){showNotification('Erro: '+err.message);$('#importInput').value='';}
 }
 
 // ===== REPORTS =====
 async function generateAndSaveReport(){
-  const all=await db.transactions.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray();
-  if(!all.length&&!insts.length&&!debts.length)return showNotification('Nada para relatar.');
+  const all=await db.transactions.toArray(),debts=await db.debts.toArray(),fixedAll=await db.fixedexpenses.toArray();
+  if(!all.length&&!debts.length)return showNotification('Nada para relatar.');
   let md='# Relatório Financeiro\n\n**Gerado em:** '+new Date().toLocaleString('pt-BR')+'\n\n';
   md+='## Resumo Financeiro\n\n';
   const income=all.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense=all.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   md+=`| Indicador | Valor |\n|-----------|-------|\n| Saldo | R$ ${(income-expense).toFixed(2)} |\n| Total Receitas | R$ ${income.toFixed(2)} |\n| Total Despesas | R$ ${expense.toFixed(2)} |\n| Transações | ${all.length} |\n`;
   const totalDebt=debts.reduce((s,d)=>s+d.currentAmount,0);
-  const totalInst=insts.filter(i=>i.paidInstallments<i.installmentCount).reduce((s,i)=>s+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
-  md+=`| Dívidas | R$ ${totalDebt.toFixed(2)} |\n| Parcelas Futuras | R$ ${totalInst.toFixed(2)} |\n\n`;
+  const now=new Date(),cur=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let futureTotal=0;
+  for(const f of fixedAll){
+    if(!f.active||!f.endMonth)continue;
+    const st=f.startMonth||(f.createdAt?f.createdAt.substring(0,7):cur);
+    const start=st>cur?st:cur;
+    if(start>f.endMonth)continue;
+    const [sy,sm]=start.split('-').map(Number);
+    const [ey,em]=f.endMonth.split('-').map(Number);
+    const months=(ey-sy)*12+(em-sm)+1;
+    if(months>0)futureTotal+=f.amount*months;
+  }
+  md+=`| Dívidas | R$ ${totalDebt.toFixed(2)} |\n| Compromissos Futuros (período definido) | R$ ${futureTotal.toFixed(2)} |\n\n`;
   if(all.length){
     md+='---\n\n## Transações\n\n| # | Data | Tipo | Categoria | Descrição | Valor |\n|---|------|------|-----------|-----------|-------|\n';
     [...all].sort((a,b)=>b.date.localeCompare(a.date)).forEach((t,i)=>{

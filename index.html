@@ -29,7 +29,6 @@
 <button class="tab-btn active" data-tab="chat">Chat</button>
 <button class="tab-btn" data-tab="dashboard">Dashboard</button>
 <button class="tab-btn" data-tab="commands">Comandos</button>
-<button class="tab-btn" data-tab="cards">Cartões</button>
 <button class="tab-btn" data-tab="bills">Contas</button>
 <button class="tab-btn" data-tab="debts">Dívidas</button>
 </div>
@@ -80,9 +79,8 @@
 <div class="summary-subtle">
 <div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">📄 Contas Fixas</span><span class="card-value" id="dFixedExpenses">R$ 0</span></div>
 <div class="card card-subtle" onclick="openTypeModal('expense')" style="cursor:pointer"><span class="card-label">📉 Despesas do Mês</span><span class="card-value" id="dMonthExpense">R$ 0</span></div>
-<div class="card card-subtle" onclick="openFutureInstallmentsModal()" style="cursor:pointer"><span class="card-label">📅 Parcelas Futuras</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
+<div class="card card-subtle" onclick="openFutureInstallmentsModal('all')" style="cursor:pointer"><span class="card-label">📅 Compromissos Futuros</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
 <div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">⚠️ Em Atraso</span><span class="card-value" id="dOverdueDebt">R$ 0</span></div>
-<div class="card card-subtle" onclick="openTab('cards')" style="cursor:pointer"><span class="card-label">🏦 Crédito Usado</span><span class="card-value" id="dCreditUsed">0%</span></div>
 </div>
 <div id="budgetAlerts" class="summary-subtle" style="display:none"></div>
 
@@ -93,12 +91,10 @@
 <div class="chart-container"><h3>📊 Gastos Mensais</h3><canvas id="chartMonthlyExpense"></canvas></div>
 <div class="chart-container"><h3>📊 Receitas Mensais</h3><canvas id="chartIncomePeriod"></canvas></div>
 <div class="chart-container"><h3>📊 Saídas por Período</h3><canvas id="chartExpensePeriod"></canvas></div>
-<div class="chart-container"><h3>📅 Compromissos Futuros</h3><canvas id="chartFutureCommitments"></canvas></div>
 <div class="chart-container"><h3>📈 Investimentos</h3><canvas id="chartInvestmentLine"></canvas></div>
 <div class="chart-container"><h3>📊 Comparação Mensal</h3><canvas id="chartComparison"></canvas></div>
 <div class="chart-container"><div class="chart-header"><h3>🏆 Top Despesas</h3></div><canvas id="chartTopExpense"></canvas></div>
 <div class="chart-container"><div class="chart-header"><h3>🏆 Top Receitas</h3></div><canvas id="chartTopIncome"></canvas></div>
-<div class="chart-container"><h3>⚠️ Endividamento</h3><canvas id="chartIndebtedness"></canvas></div>
 <div class="chart-container full"><h3>🔮 Fluxo de Caixa Projetado</h3><canvas id="chartCashFlow"></canvas></div>
 </div>
 </section>
@@ -139,25 +135,6 @@
 </div>
 </section>
 
-<section id="cards" class="tab-content">
-<div class="cards-layout">
-<div class="panel"><h2>📇 Cartões</h2>
-<form id="cardForm" class="inline-form" autocomplete="off"><div class="form-inline" style="flex-wrap:wrap">
-<input type="text" id="cardName" placeholder="Nome" style="flex:1;min-width:100px" required>
-<input type="text" id="cardBank" placeholder="Banco" style="flex:1;min-width:100px">
-<input type="number" id="cardLimit" placeholder="Limite total" step="0.01" style="flex:0 0 100px">
-<input type="number" id="cardCloseDay" placeholder="Fechamento" min="1" max="31" style="flex:0 0 90px">
-<input type="number" id="cardDueDay" placeholder="Vencimento" min="1" max="31" style="flex:0 0 90px">
-<input type="color" id="cardColor" value="#3b82f6" style="width:40px;height:38px;padding:2px;cursor:pointer">
-<button type="submit" class="btn-primary" style="width:auto;padding:0.6rem 1rem;margin:0">Criar</button>
-</div></form>
-<div class="table-wrapper"><table><thead><tr><th></th><th>Nome</th><th>Banco</th><th>Limite</th><th>Disponível</th><th>Fechamento</th><th>Vencimento</th><th>Fatura</th><th>Ação</th></tr></thead>
-<tbody id="cardsBody"></tbody></table></div>
-<p class="empty-state" id="emptyCards">Nenhum cartão.</p>
-</div>
-</div>
-</section>
-
 <section id="bills" class="tab-content">
 <div class="cards-layout">
 <div class="panel"><h2>📄 Contas Fixas</h2>
@@ -171,6 +148,10 @@
 <div class="form-group"><label>Categoria</label><select id="fixedCategory"></select></div>
 </div>
 <div class="form-row">
+<div class="form-group"><label>Início (mês da 1ª cobrança)</label><input type="month" id="fixedStartMonth"></div>
+<div class="form-group"><label>Término (opcional)</label><input type="month" id="fixedEndMonth" title="Use para compras parceladas: ex. início 2026-09 e término 2026-11 = 3 meses"></div>
+</div>
+<div class="form-row">
 <div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="fixedActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
 </div>
 <button type="submit" class="btn-primary">Adicionar Conta</button>
@@ -179,63 +160,15 @@
 <span style="font-size:0.82rem;color:var(--text-secondary)">Contas cadastradas</span>
 <button class="btn-sm" onclick="openFixedModal()">📋 Ver Contas do Mês</button>
 </div>
-<div class="table-wrapper"><table><thead><tr><th>Nome</th><th>Valor</th><th>Vencimento</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
+<div class="table-wrapper"><table><thead><tr><th>Nome</th><th>Valor</th><th>Período</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
 <tbody id="fixedBody"></tbody></table></div>
 <p class="empty-state" id="emptyFixed">Nenhuma conta fixa.</p>
-</div>
-
-<div class="panel"><h2>🔄 Compras Recorrentes</h2>
-<form id="recurringForm" autocomplete="off">
-<div class="form-row">
-<div class="form-group"><label>Nome</label><input type="text" id="recName" required></div>
-<div class="form-group"><label>Valor Mensal</label><input type="number" id="recAmount" step="0.01" required></div>
-</div>
-<div class="form-row">
-<div class="form-group"><label>Cartão</label><select id="recCard"></select></div>
-<div class="form-group"><label>Categoria</label><select id="recCategory"></select></div>
-</div>
-<div class="form-row">
-<div class="form-group"><label>Data de Início</label><input type="date" id="recStartDate" required></div>
-<div class="form-group"><label>Ativo</label><label style="flex-direction:row;align-items:center;gap:0.5rem;margin-top:0.35rem;cursor:pointer"><input type="checkbox" id="recActive" checked style="width:16px;height:16px;margin:0"> Cobrança ativa</label></div>
-</div>
-<button type="submit" class="btn-primary">Adicionar Recorrente</button>
-</form>
-<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Nome</th><th>Valor</th><th>Cartão</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
-<tbody id="recBody"></tbody></table></div>
-<p class="empty-state" id="emptyRec">Nenhuma compra recorrente.</p>
 </div>
 </div>
 </section>
 
 <section id="debts" class="tab-content">
 <div class="cards-layout">
-<div class="panel"><h2>🛒 Compras Parceladas</h2>
-<form id="installmentForm" autocomplete="off">
-<div class="form-row">
-<div class="form-group"><label>Descrição</label><input type="text" id="instDesc" required></div>
-<div class="form-group"><label>Valor Total</label><input type="number" id="instTotal" step="0.01" required></div>
-</div>
-<div class="form-row">
-<div class="form-group"><label>Parcelas</label><input type="number" id="instCount" min="1" required></div>
-<div class="form-group"><label>Valor Parcela</label><input type="number" id="instValue" step="0.01" readonly style="opacity:0.7"></div>
-</div>
-<div class="form-row">
-<div class="form-group"><label>Data Compra</label><input type="date" id="instDate" required></div>
-<div class="form-group"><label>1ª Parcela</label><input type="date" id="instFirstDate" required></div>
-</div>
-<div class="form-row">
-<div class="form-group"><label>Cartão</label><select id="instCard"></select></div>
-<div class="form-group"><label>Categoria</label><select id="instCategory"></select></div>
-</div>
-<div class="form-group"><label>Observações</label><input type="text" id="instNotes"></div>
-<button type="submit" class="btn-primary" id="instSubmitBtn">Adicionar Compra</button>
-<button type="button" class="btn-secondary" id="instCancelBtn" style="display:none;margin-left:0.5rem" onclick="cancelEditInstallment()">Cancelar</button>
-</form>
-<div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Descrição</th><th>Total</th><th>Parcelas</th><th>Valor</th><th>Previsto</th><th>Cartão</th><th>Categoria</th><th>Parcelas Restantes</th><th>Restante</th><th>Ação</th></tr></thead>
-<tbody id="installmentsBody"></tbody></table></div>
-<p class="empty-state" id="emptyInstallments">Nenhuma compra parcelada.</p>
-</div>
-
 <div class="panel"><h2>⚠️ Dívidas</h2>
 <form id="debtForm" autocomplete="off">
 <div class="form-row">
@@ -262,18 +195,7 @@
 </div>
 </section>
 
-<div class="modal-overlay" id="invoiceModal" onclick="if(event.target===this)closeInvoiceModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>💳 Fatura - <span id="invoiceCardName"></span></h2>
-      <button class="btn-sm" onclick="closeInvoiceModal()">✕</button>
-    </div>
-    <div class="modal-subheader" id="invoiceCardInfo"></div>
-    <div class="modal-body" id="invoiceModalBody"></div>
-  </div>
-</div>
-
-  <div class="modal-overlay" id="projectedModal" onclick="if(event.target===this)closeModal('projectedModal')">
+<div class="modal-overlay" id="projectedModal" onclick="if(event.target===this)closeModal('projectedModal')">
     <div class="modal modal-wide">
       <div class="modal-header">
         <h2>📈 Projeção de Saldo — Próximos 12 Meses</h2>
@@ -412,7 +334,6 @@
   <script src="js/chat.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/commands.js"></script>
-  <script src="js/cards.js"></script>
   <script src="js/debts.js"></script>
   <script src="js/bills.js"></script>
   <script src="js/data.js"></script>
