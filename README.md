@@ -100,13 +100,18 @@ finance-app/
 
 ## 🔧 Alterações da Sessão (11/09/2026) — Dashboard V2
 
-### Dashboard explorável
-- Novo header com busca global, filtro de mês e ações compactas (ícones com tooltip)
-- **Receitas/Despesas por Categoria**: grid de cards por categoria (cor, total do período, % , nº de lançamentos, mini-barra proporcional)
-  - Clique no card abre **modal de detalhes**: seleção de período, subtotal, progresso do orçamento (despesas), mini-gráfico mensal e lista completa de lançamentos (parcelas identificadas, editar/excluir/pagar)
-- **Extrato Detalhado**: tabela com todas as transações e filtros combináveis — período, tipo, categoria e busca por texto; total calculado por filtro; ações de editar/excluir por linha
-- "Ver todas →" em cada seção foca o extrato já filtrado (receitas/despesas)
-- Modal de categoria re-renderiza após refresh se estiver aberto
+### Dashboard: apenas resumos (modal por tipo)
+- A dashboard passou a mostrar **somente resumos**: cards de valor, alertas de orçamento e gráficos. As listas cheias (grids "Receitas/Despesas por Categoria" e "Extrato Detalhado") foram **removidas do corpo** e viraram modais acionados pelos cards
+- **Redundância eliminada**: o card "Receita do Mês" (que repetia o total da seção "Receitas por Categoria") agora abre o modal de receitas — um só lugar, um só número
+- Cards que **abrem detalhe**:
+  - `💰 Receitas do Mês` → `openTypeModal('income')` — total por categoria (grid) + lista de lançamentos com filtros (período, categoria, busca)
+  - `📉 Despesas do Mês` → `openTypeModal('expense')` — idem, incluindo parcelas a pagar
+  - `💳 Dívidas` → abre a aba Dívidas (`openTab('debts')`)
+  - `🏦 Crédito Usado` → abre a aba Cartões (`openTab('cards')`)
+  - `📈 Saldo Projetado`, `📄 Contas Fixas`, `📅 Parcelas Futuras`, `⚠️ Em Atraso` já abriam modais
+- Modal `#typeModal` (seção "DASHBOARD V2" em `js/dashboard.js`): cluster de categorias com % e mini-barra (clique aprofunda no modal da categoria) + tabela detalhada com editar/excluir (despesas com parcela ✅)
+- Navegação por abas via `openTab()` em `js/main.js`; busca global `#dashSearch` movida para dentro do modal (cada tipo tem sua busca)
+- Modal de categoria re-renderiza após refresh se estiver aberto (idem para `#typeModal`)
 
 ### Contas atrasadas — competência x vencimento efetivo
 - O card `⚠️ Em Atraso` (era "Dívidas Atrasadas", que duplicava o card Dívidas) agora mostra o total de **contas fixas em atraso** por **consulta**, sem alterar/de-duplicar lançamentos
@@ -115,12 +120,12 @@ finance-app/
 - Helpers em `js/bills.js`: `monthKeyOf`, `addMonths`, `getFixDueDate`, `getUnpaidCompetencias`, `getOverdueFixedTotal`, `promptFixedAmount`, `payOverdueFixed`
 
 ### Estrutura
-- HTML: `index.html` — novas seções `.dash-section` + modal `#categoryModal`
-- CSS: `style.css` — bloco "DASHBOARD V2" (grid de categorias, extrato, filtros, responsivo mobile) + `.fixed-overdue-sec`
-- JS: `script.js` foi **dividido em módulos** em `js/` (globals, utils, chat, dashboard, commands, cards, debts, bills, data, main) — funções `setupExtract`, `renderCategorySections`, `renderCategoryGrid`, `openCategoryModal`, `renderCategoryModal`, `renderExtract`, `focusExtract`, `clearExtractFilters`, `updateExtractFilters`, `setupDashPeriodBadge` agora em `js/dashboard.js` (seção "DASHBOARD V2")
+- HTML: `index.html` — modal `#typeModal`; removidas seções `.dash-section` de categorias e do extrato + `#dashSearch`
+- CSS: `style.css` — bloco "DASHBOARD V2" (grid de categorias, extrato, filtros, responsivo mobile) + `.fixed-overdue-sec` + `.type-modal-grid`
+- JS: `script.js` foi **dividido em módulos** em `js/` (globals, utils, chat, dashboard, commands, cards, debts, bills, data, main) — `setupTypeModal`, `openTypeModal`, `renderTypeModal`, `renderTypeModalGrid`, `openCategoryModal`, `renderCategoryModal`, `setupDashPeriodBadge` em `js/dashboard.js` (seção "DASHBOARD V2"); `openTab` em `js/main.js`
 
 ### Testes
-- Validação com navegador headless + servidor local contra o banco real: 22 cards de categoria, 228 linhas no extrato, 13 gráficos renderizados, sem erro fatal de JS
+- Validação com navegador headless + servidor local contra o banco real: 22 cards de categoria, 228 lançamentos no modal por tipo, 13 gráficos renderizados, sem erro fatal de JS
 
 ---
 
@@ -165,7 +170,8 @@ finance-app/
 | `executeCommand(keyword, amount)` | `chat.js` | Executa comando, fallback para categoria, cria transação |
 | `showCreateCommandModal(keyword, amount, date)` | `commands.js` | Modal de criação de comando não encontrado |
 | `showAutocomplete(input, box)` | `chat.js` | Autocomplete combinado comandos + categorias |
-| `refreshDashboard()` | `dashboard.js` | Atualiza cards, gráficos, categorias e extrato |
+| `refreshDashboard()` | `dashboard.js` | Atualiza cards, gráficos, alertas e modais abertos |
+| `openTypeModal(type)` | `dashboard.js` | Modal por tipo (receitas/despesas): categorias + lançamentos + filtros |
 | `getUnpaidCompetencias(exp, paysSet, curKey)` | `bills.js` | Competências não pagas e já vencidas (lógica de atraso) |
 | `getOverdueFixedTotal()` | `bills.js` | Total de contas fixas em atraso (card `⚠️ Em Atraso`) |
 | `renderChatHistory()` | `chat.js` | Renderiza histórico de transações no chat |

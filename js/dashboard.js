@@ -9,12 +9,11 @@ async function refreshDashboard(){
   renderChartTopExpense(tx);renderChartTopIncome(tx);
   renderChartIndebtedness(insts,debts,cards);await renderChartCashFlow(tx,insts,debts);
   dashTx=tx;dashInsts=insts;
-  await renderCategorySections();
-  await updateExtractFilters();
-  renderExtract();
   setupDashPeriodBadge();
   const catModal=$('#categoryModal');
   if(catModal&&catModal.classList.contains('show'))await renderCategoryModal();
+  const typeModal=$('#typeModal');
+  if(typeModal&&typeModal.classList.contains('show'))renderTypeModal();
 }
 function destroyAllCharts(){Object.values(charts).forEach(c=>c?.destroy());charts={};}
 function makeChart(id,cfg){if(charts[id]){charts[id].destroy();delete charts[id];}const c=document.getElementById(id);if(!c)return null;charts[id]=new Chart(c,cfg);return charts[id];}
@@ -456,23 +455,6 @@ async function openProjectedModal(){
   $('#projectedModal').classList.add('show');
 }
 
-// ===== MODAL MONTH EXPENSE =====
-async function openMonthExpenseModal(){
-  const tx=await db.transactions.toArray();
-  const now=new Date(),thisMonth=dashboardFilter==='all'?currentMonthKey():dashboardFilter;
-  const expenses=tx.filter(t=>t.type==='expense'&&t.date.startsWith(thisMonth)).sort((a,b)=>b.date.localeCompare(a.date));
-  const total=expenses.reduce((s,t)=>s+t.amount,0);
-  $('#monthExpenseInfo').textContent=`Total: ${formatCurrency(total)} | ${expenses.length} despesa${expenses.length!==1?'s':''} em ${thisMonth}`;
-  if(!expenses.length){$('#monthExpenseBody').innerHTML='<p class="empty-state">Nenhuma despesa neste mês.</p>';$('#monthExpenseModal').classList.add('show');return;}
-  let html='<table class="detail-table"><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>';
-  for(const t of expenses){
-    html+=`<tr><td>${formatDate(t.date)}</td><td>${escapeHtml(t.category)}</td><td>${escapeHtml(t.description)}</td><td style="color:var(--expense)">${formatCurrency(t.amount)}</td></tr>`;
-  }
-  html+='</tbody></table>';
-  $('#monthExpenseBody').innerHTML=html;
-  $('#monthExpenseModal').classList.add('show');
-}
-
 // ===== MODAL FUTURE COMMITMENTS =====
 async function openFutureInstallmentsModal(filter){
   filter=filter||'all';futureModalFilter=filter;
@@ -634,28 +616,28 @@ async function toggleFutureFixed(expenseId,monthKey){
   showNotification(existing?`"${exp.name}" desmarcado.`:`✅ "${exp.name}" pago!`);
 }
 
-// ===== DASHBOARD V2: CATEGORY GRIDS, MODAL & EXTRACT =====
-function setupExtract() {
+// ===== DASHBOARD V2: MODAL POR TIPO (receitas/despesas) =====
+let typeModalCtx=null;
+
+function setupTypeModal() {
   const debounce=(fn,ms=250)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
-  $('#extractPeriod').addEventListener('change',()=>renderExtract());
-  $('#extractType').addEventListener('change',()=>renderExtract());
-  $('#extractCategory').addEventListener('change',()=>renderExtract());
-  $('#extractSearch').addEventListener('input',debounce(()=>renderExtract()));
-  $('#dashSearch').addEventListener('input',debounce(()=>{
-    $('#extractSearch').value=$('#dashSearch').value;
-    renderExtract();
-  }));
-  const grids=['incomeCategoryGrid','expenseCategoryGrid'];
-  grids.forEach(id=>{
-    const grid=document.getElementById(id);
-    if(grid)grid.addEventListener('click',e=>{
-      const card=e.target.closest('.category-card');
-      if(card&&card.dataset.category)openCategoryModal(card.dataset.category,card.dataset.type);
-    });
+  const period=$('#typeModalPeriod');
+  if(period)period.addEventListener('change',()=>renderTypeModal());
+  const cat=$('#typeModalCategory');
+  if(cat)cat.addEventListener('change',()=>renderTypeModal());
+  const search=$('#typeModalSearch');
+  if(search)search.addEventListener('input',debounce(()=>renderTypeModal()));
+  const grid=$('#typeModalGrid');
+  if(grid)grid.addEventListener('click',e=>{
+    const card=e.target.closest('.category-card');
+    if(card&&card.dataset.category)openCategoryModal(card.dataset.category,card.dataset.type);
   });
 }
 
-async function updateExtractFilters() {
+async function openTypeModal(type){
+  typeModalCtx={type};
+  $('#typeModalDot').style.background=pickColor(type);
+  $('#typeModalTitle').textContent=type==='income'?'💰 Receitas':'💸 Despesas';
   const months=new Set(dashTx.map(t=>t.date.substring(0,7)));
   for(const i of dashInsts){
     if(i.paidInstallments>=i.installmentCount)continue;
@@ -665,107 +647,92 @@ async function updateExtractFilters() {
       months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
     }
   }
-  const sel=$('#extractPeriod'),selCur=sel.value;
-  const opts='<option value="all">📅 Todos os períodos</option>'+[...months].sort().reverse().map(m=>`<option value="${m}">${formatMonthLabel(m)}</option>`).join('');
-  sel.innerHTML=opts;
-  sel.value=months.has(selCur)?selCur:'all';
+  const sel=$('#typeModalPeriod');
+  const defaultPeriod=(dashboardFilter!=='all'&&months.has(dashboardFilter))?dashboardFilter:'all';
+  sel.innerHTML='<option value="all">📅 Todos os períodos</option>'+[...months].sort().reverse().map(m=>`<option value="${m}">${formatMonthLabel(m)}</option>`).join('');
+  sel.value=defaultPeriod;
   const cats=window._allCategories||[];
-  const catSel=$('#extractCategory'),catCur=catSel.value;
-  const catOpts='<option value="all">Todas as categorias</option>'+cats.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} ${c.type==='income'?'💰':'💸'}</option>`).join('');
-  catSel.innerHTML=catOpts;
-  catSel.value=cats.some(c=>c.name===catCur)?catCur:'all';
+  const catSel=$('#typeModalCategory');
+  catSel.innerHTML='<option value="all">Todas as categorias</option>'+cats.filter(c=>c.type===type).map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+  catSel.value='all';
+  $('#typeModalSearch').value='';
+  renderTypeModal();
+  $('#typeModal').classList.add('show');
 }
 
-function renderExtract(){
-  const body=$('#extractBody'),empty=$('#extractEmpty');
-  const tx=dashTx;
-  if(!tx.length){body.innerHTML='';empty.style.display='block';$('#extractTotal').textContent='';return;}
-  let filtered=tx.slice();
-  const period=$('#extractPeriod').value,type=$('#extractType').value,cat=$('#extractCategory').value;
-  const q=$('#extractSearch').value.trim().toLowerCase();
-  if(period!=='all')filtered=filtered.filter(t=>t.date.startsWith(period));
-  if(type!=='all')filtered=filtered.filter(t=>t.type===type);
-  if(cat!=='all')filtered=filtered.filter(t=>t.category===cat);
-  if(q)filtered=filtered.filter(t=>`${t.description||''} ${t.category} ${t.command||''}`.toLowerCase().includes(q));
-  filtered.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
-  const total=filtered.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
-  $('#extractTotal').textContent=`${filtered.length} transação${filtered.length!==1?'ões':''} · ${formatCurrency(total)}`;
-  if(!filtered.length){body.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
+function renderTypeModal(){
+  if(!typeModalCtx)return;
+  const{type}=typeModalCtx;
+  const period=$('#typeModalPeriod').value,cat=$('#typeModalCategory').value;
+  const q=($('#typeModalSearch').value||'').trim().toLowerCase();
+  const tx=dashTx,insts=dashInsts;
+  const items=[],groups={};
+  let grand=0;
+  for(const t of tx){
+    if(t.type!==type)continue;
+    if(period!=='all'&&!t.date.startsWith(period))continue;
+    if(cat!=='all'&&t.category!==cat)continue;
+    if(q&&!`${t.description||''} ${t.category||''} ${t.command||''}`.toLowerCase().includes(q))continue;
+    items.push({date:t.date,amount:t.amount,description:t.description||'',category:t.category,kind:'tx',id:t.id});
+    groups[t.category]=(groups[t.category]||0)+t.amount;
+    grand+=t.amount;
+  }
+  if(type==='expense'){
+    for(const i of insts){
+      if(i.paidInstallments>=i.installmentCount)continue;
+      if(cat!=='all'&&i.category!==cat)continue;
+      const first=new Date(i.firstInstallmentDate+'T12:00:00');
+      for(let p=i.paidInstallments||0;p<i.installmentCount;p++){
+        const dd=new Date(first.getFullYear(),first.getMonth()+p,first.getDate());
+        const dateStr=`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+        const m=dateStr.substring(0,7);
+        if(period!=='all'&&m!==period)continue;
+        const desc=`${i.description} (parcela ${p+1}/${i.installmentCount})`;
+        if(q&&!`${desc} ${i.category||''}`.toLowerCase().includes(q))continue;
+        items.push({date:dateStr,amount:i.installmentValue,description:desc,category:i.category,kind:'parcela',installmentId:i.id});
+        groups[i.category]=(groups[i.category]||0)+i.installmentValue;
+        grand+=i.installmentValue;
+      }
+    }
+  }
+  items.sort((a,b)=>b.date.localeCompare(a.date)||(b.id||0)-(a.id||0));
+  renderTypeModalGrid(type,groups,grand);
+  const infoEl=$('#typeModalInfo');
+  if(infoEl){
+    const periodLabel=period==='all'?'todos os períodos':formatMonthLabel(period);
+    infoEl.textContent=`Total: ${formatCurrency(grand)} · ${items.length} lançamento${items.length!==1?'s':''} · ${periodLabel}`;
+  }
+  const body=$('#typeModalBody');
+  if(!body)return;
+  if(!items.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>';return;}
   const cats=window._allCategories||[];
-  body.innerHTML=filtered.map(t=>{
+  body.innerHTML=items.map(t=>{
     const c=cats.find(x=>x.name===t.category);
-    const color=c?.color||pickColor(t.type);
-    const isIncome=t.type==='income';
+    const color=c?.color||pickColor(type);
+    const badge=t.kind==='parcela'?'<span class="badge-expense">parcela</span> ':'';
+    const actions=t.kind==='tx'
+      ?`<button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar">✏️</button> <button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button>`
+      :`<button class="btn-sm" onclick="markInstallmentPaid(${t.installmentId},1)" title="Pagar parcela">✅</button>`;
     return `<tr>
       <td>${formatDate(t.date)}</td>
-      <td><span class="badge-${t.type}">${isIncome?'Receita':'Despesa'}</span></td>
       <td><span class="extract-cat"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color}"></span>${escapeHtml(t.category)}</span></td>
-      <td class="extract-desc" title="${escapeHtml(t.description||'')}">${escapeHtml(t.description||'')}</td>
-      <td class="${isIncome?'extract-val-income':'extract-val-expense'}" style="text-align:right">${isIncome?'+ ':'- '}${formatCurrency(t.amount)}</td>
-      <td style="text-align:right"><button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar">✏️</button> <button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button></td>
+      <td class="extract-desc" title="${escapeHtml(t.description)}">${badge}${escapeHtml(t.description)}</td>
+      <td style="text-align:right;color:${type==='income'?'var(--income)':'var(--expense)'}">${type==='income'?'+ ':'- '}${formatCurrency(t.amount)}</td>
+      <td style="text-align:right">${actions}</td>
     </tr>`;
   }).join('');
 }
 
-function focusExtract(type){
-  $('#extractType').value=type;
-  renderExtract();
-  const sec=document.getElementById('extractBody')?.closest('.dash-section');
-  if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-function clearExtractFilters(){
-  $('#extractPeriod').value='all';
-  $('#extractType').value='all';
-  $('#extractCategory').value='all';
-  $('#extractSearch').value='';
-  $('#dashSearch').value='';
-  renderExtract();
-}
-
-async function setupDashPeriodBadge(){
-  const el=$('#dashPeriodBadge');if(!el)return;
-  if(dashboardFilter==='all')el.textContent='📊 Todos os meses';
-  else el.textContent=`📅 Período: ${formatMonthLabel(dashboardFilter)}`;
-}
-
-async function renderCategorySections(){
-  renderCategoryGrid('income',dashTx,dashInsts);
-  renderCategoryGrid('expense',dashTx,dashInsts);
-}
-
-function renderCategoryGrid(type,tx,insts){
-  const filter=dashboardFilter;
-  const periodTx=filterTxByMonth(tx,filter).filter(t=>t.type===type);
-  const counts={},totals={};
-  let grand=0;
-  for(const t of periodTx){
-    counts[t.category]=(counts[t.category]||0)+1;
-    totals[t.category]=(totals[t.category]||0)+t.amount;
-    grand+=t.amount;
-  }
-  if(type==='expense'){
-    const target=filter==='all'?currentMonthKey():filter;
-    const instMap=installmentsByCategoryInMonth(insts,target);
-    for(const[cat,val]of Object.entries(instMap)){
-      totals[cat]=(totals[cat]||0)+val;
-      grand+=val;
-      if(!counts[cat])counts[cat]=1;
-    }
-  }
+function renderTypeModalGrid(type,groups,grand){
+  const grid=$('#typeModalGrid');
+  if(!grid)return;
   const cats=window._allCategories||[];
-  const items=Object.entries(totals)
+  const items=Object.entries(groups)
     .map(([name,total])=>{
       const c=cats.find(x=>x.name===name);
-      return{name,total,color:c?.color||pickColor(type),count:counts[name]||0,pct:grand>0?Math.round(total/grand*100):0};
+      return{name,total,color:c?.color||pickColor(type),pct:grand>0?Math.round(total/grand*100):0};
     })
     .sort((a,b)=>b.total-a.total);
-  const gridId=type==='income'?'incomeCategoryGrid':'expenseCategoryGrid';
-  const totalId=type==='income'?'incomeSectionTotal':'expenseSectionTotal';
-  const grid=document.getElementById(gridId),totalEl=document.getElementById(totalId);
-  if(!grid||!totalEl)return;
-  totalEl.textContent=formatCurrency(grand);
   if(!items.length){
     grid.innerHTML=`<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:0.82rem;padding:1rem">Nenhuma ${type==='income'?'receita':'despesa'} neste período.</p>`;
     return;
@@ -780,10 +747,15 @@ function renderCategoryGrid(type,tx,insts){
       <div class="category-amount">${formatCurrency(item.total)}</div>
       <div class="category-extra">
         <span class="category-pct">${item.pct}%</span>
-        <span class="category-count">${item.count} lançamento${item.count!==1?'s':''}</span>
       </div>
       <div class="category-mini-bar"><div style="width:${Math.min(100,item.pct)}%"></div></div>
     </div>`).join('');
+}
+
+async function setupDashPeriodBadge(){
+  const el=$('#dashPeriodBadge');if(!el)return;
+  if(dashboardFilter==='all')el.textContent='📊 Todos os meses';
+  else el.textContent=`📅 Período: ${formatMonthLabel(dashboardFilter)}`;
 }
 
 async function openCategoryModal(category,type){

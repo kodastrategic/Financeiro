@@ -1025,6 +1025,10 @@ td code { color: var(--accent); font-size: 0.85rem; }
   grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
   gap: 0.7rem;
 }
+.type-modal-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); max-height: 220px; overflow-y: auto; padding-right: 0.2rem; }
+.type-modal-grid .category-card { padding: 0.6rem 0.8rem; }
+.type-modal-grid .category-name { font-size: 0.78rem; }
+.type-modal-grid .category-amount { font-size: 0.95rem; margin: 0.25rem 0; }
 .category-card {
   background: var(--bg-card);
   background-image: var(--bg-card-gradient);

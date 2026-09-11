@@ -1,4 +1,8 @@
 // ===== APP INIT & NAV =====
+function openTab(tab){
+  const b=document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  if(b)b.click();
+}
 function setupTabNavigation(){
   $$('.tab-btn').forEach(b=>{
     b.addEventListener('click',()=>{
@@ -20,7 +24,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     await seedData(); await loadCategoriesSelect(); await loadCommandsTable(); await loadCategoriesTable();
     setupTabNavigation(); setupChat(); setupCommandForm(); setupCategoryForm(); setupCreateCmdForm();
     setupCardForm(); setupInstallmentForm(); setupDebtForm(); setupRecurringForm(); setupFixedForm();
-    setupEditTxForm(); setupBudgetForm(); setupExtract();
+    setupEditTxForm(); setupBudgetForm(); setupTypeModal();
     await loadCardSelect(); await loadFixedTable(); await loadBudgetsTable();
     await setupGlobalMonthFilter(); await refreshDashboard(); setupChartGlow(); renderChatHistory(); scrollChatToTop(); $('#chatInput').focus();
     $('#loadingScreen').classList.add('hidden');
