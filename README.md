@@ -129,6 +129,36 @@ finance-app/
 
 ---
 
+## 🔧 Redesign UI/UX — Design System v2 (Dark Refinado, 11/09/2026)
+
+### Visão geral
+- **`style.css` reescrito por completo** mantendo 100% do contrato de classes/ids consumidos pelos JS (nenhuma mudança de markup/JS necessária para o CSS)
+- Tema **dark refinado**: fundo mais profundo (`#0a0d12`), superfícies em vidro (`backdrop-filter` + bordas translúcidas), gradientes de acento indigo→violeta, tipografia numérica tabular (`font-variant-numeric`) para valores monetários
+- **Tokens centralizados** em `:root`: fundos, texto, acentos, semântico (income/expense/warn), bordas, raios (`--radius*`) e sombras
+
+### Componentes
+- **Nav**: barra fixa com blur (`rgba(10,13,18,.82)`), brand com tile em gradiente, abas em **pill** com gradiente ativo e sombra glow
+- **Cards de resumo**: hover com lift + sombra; cada variante tem um glow radial próprio (`.card-saldo`/`.card-projetado`/`.card-dividas`/`.card-receita-mes`), valor principal em gradiente de texto
+- **Gráficos**: containers vidro com hover glow; h3 com acento; legenda em chips pills
+- **Botões**: `.btn-primary` gradiente + glow; `.btn-secondary` outline; `.btn-danger` soft; `.btn-sm` ghost com variantes `.primary`/`.danger`; `.filter-btn` pill
+- **Forms**: inputs com focus ring (`box-shadow` 4px accent), `select` com chevron SVG customizado, `color` swatch arredondado
+- **Modais**: overlay com blur, animação `modalIn` (escala + slide) e `.modal` em `--radius-lg:16px` com sombra profunda
+- **Estruturas**: tabelas com hover suave, badges em pills, progress-bar com gradiente + glow, `.empty-state` com borda tracejada, notifications/toast com blur e bounce-in
+- **Chat**: input pill glass, mensagens com gradientes, botões editar/excluir revelados no hover; loader 3D boxes com glow
+
+### Charts (js/dashboard.js)
+- **Defaults do Chart.js** no topo do módulo (com guardas para compatibilidade): fonte do body, cores de grid/ticks/tooltip (escuro + borda accent), animação `easeOutQuart` 600ms, legendas pontuais
+- **Paleta refinada**: income → `#34d399`/gradientes esmeralda, expense → `#f87171`/gradientes coral, bordas dos donuts alinhadas ao novo fundo (`#0a0d12`), linha "Real" em indigo-400
+- **Paletas de categorias** (`js/utils.js`) e **cores seed** (`js/globals.js`) harmonizadas ao novo tema
+
+### Testes
+- Validação via **Chrome DevTools Protocol** (Node + WebSocket): página carrega com loading oculto, **14 canvas**, cards do resumo populados (Saldo R$ 3.902,56 · Receitas R$ 12.675,00 · Despesas R$ 9.799,28 · Em Atraso R$ 2.187,77)
+- Modal de Despesas: `#typeModal` com `show`, título "💸 Despesas", total **R$ 10.159,44 / 65 lançamentos / Set/2026**, 65 linhas, 19 cards de categoria, busca ativa — zero exceções
+- Modal de Receitas: "💰 Receitas", **R$ 12.675,00 / 11 lançamentos**, 11 linhas, 4 cards
+- Screenshots de referência: `shot_dash.png`, `shot_modal.png`, `shot_bills.png`, `shot_chat.png` (gerados em ambiente headless na validação)
+
+---
+
 ## 🔧 Alterações da Sessão (21/07/2026)
 
 ### Migração Dexie → Supabase (sessões anteriores)
@@ -183,12 +213,13 @@ finance-app/
 
 ## 🎨 Design
 
-- Tema escuro (`--bg-primary: #12141a`)
-- Cards com gradientes e efeito glow nos gráficos
+- **Design System v2 (dark refinado)** — reescrito em 11/09/2026: fundo `#0a0d12`, superfícies vidro com `backdrop-filter`, acento `#6366f1→#8b5cf6`, income `#34d399`, expense `#f87171`
+- Tema escuro com tokens centralizados em `:root` (raios, sombras, cores, tipografia)
+- Cards com gradientes e efeito glow nos gráficos (hover segue o mouse)
 - Notificações animadas no canto inferior direito
-- Responsivo (mobile-first com breakpoints)
+- Responsivo (mobile-first com breakpoints 900/768/480)
 - Scrollbar customizada
-- Loading screen com animação 3D box
+- Loading screen com animação 3D box + glow
 
 ---
 

@@ -49,7 +49,7 @@ async function showAutocomplete(input,box){
   }
   filtered=filtered.slice(0,8);
   if(!filtered.length||text.includes(' ')){box.style.display='none';return;}
-  box.innerHTML=filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('${prefix}${c.keyword} ')">${prefix}${c.keyword} <span style="color:${c.type==='income'?'#22c55e':'#ef4444'};font-size:0.75rem">${c.category}</span></div>`).join('');
+  box.innerHTML=filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('${prefix}${c.keyword} ')">${prefix}${c.keyword} <span style="color:${c.type==='income'?'#34d399':'#f87171'};font-size:0.75rem">${c.category}</span></div>`).join('');
   box.style.display='block';
 }
 function selectAutocompleteItem(val){

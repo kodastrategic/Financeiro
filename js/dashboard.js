@@ -1,4 +1,26 @@
 // ===== DASHBOARD =====
+if(window.Chart){
+  const fontFamily=typeof getComputedStyle==='function'?(getComputedStyle(document.body).fontFamily||"'Segoe UI',Roboto,sans-serif"):"'Segoe UI',Roboto,sans-serif";
+  Chart.defaults.font.family=fontFamily;
+  Chart.defaults.font.size=11;
+  Chart.defaults.color='#9aa6b8';
+  Chart.defaults.borderColor='rgba(148,163,184,0.08)';
+  Chart.defaults.plugins.tooltip.backgroundColor='rgba(10,13,18,0.94)';
+  Chart.defaults.plugins.tooltip.titleColor='#e9edf4';
+  Chart.defaults.plugins.tooltip.bodyColor='#c6d0e0';
+  Chart.defaults.plugins.tooltip.borderColor='rgba(129,140,248,0.35)';
+  Chart.defaults.plugins.tooltip.borderWidth=1;
+  Chart.defaults.plugins.tooltip.padding=10;
+  Chart.defaults.plugins.tooltip.cornerRadius=10;
+  Chart.defaults.plugins.tooltip.boxPadding=4;
+  Chart.defaults.animation.duration=600;
+  Chart.defaults.animation.easing='easeOutQuart';
+  if(Chart.defaults.scales){const _sc=Chart.defaults.scales.linear;if(_sc&&_sc.grid)_sc.grid.color='rgba(148,163,184,0.08)';if(_sc&&_sc.ticks)_sc.ticks.color='#5f6b7d';if(_sc&&_sc.border)_sc.border.display=false;}
+  const _legendLabels=Chart.defaults.plugins.legend.labels||(Chart.defaults.plugins.legend.labels={});
+  _legendLabels.usePointStyle=true;
+  _legendLabels.boxWidth=8;
+  _legendLabels.boxHeight=8;
+}
 async function refreshDashboard(){
   const tx=await db.transactions.toArray(),cards=await db.cards.toArray(),insts=await db.installments.toArray(),debts=await db.debts.toArray();
   await renderSummaryCards(tx,cards,insts,debts);destroyAllCharts();
@@ -172,7 +194,7 @@ async function renderChartBalanceLine(tx,insts,debts){
     data:{
       labels:[...dates.map(d=>formatDateShort(d)),...projDates],
       datasets:[
-        {label:'Real',data:vals,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:2,borderWidth:2},
+        {label:'Real',data:vals,borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.1)',fill:true,tension:0.4,pointRadius:2,borderWidth:2},
         {label:'Projetado',data:[...Array(vals.length-1).fill(null),lastVal,...projVals],borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,0.05)',fill:true,tension:0.4,pointRadius:2,borderWidth:2,borderDash:[5,5]}
       ]
     },
@@ -191,7 +213,7 @@ function renderChartExpenseCategory(tx,insts){
   labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
   const colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartExpenseCategory',[]);return;}
-  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
   attachPieLegend('chartExpenseCategory',labels,data,colors);
 }
 
@@ -202,7 +224,7 @@ function renderChartIncomeCategory(tx){
   labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
   const colors=labels.map(l=>catColor(l));
   if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIncomeCategory',[]);return;}
-  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
   attachPieLegend('chartIncomeCategory',labels,data,colors);
 }
 
@@ -211,7 +233,7 @@ function renderChartMonthlyExpense(tx,insts){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)+installmentsTotalInMonth(insts,target);
     if(total===0){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-    makeChart('chartMonthlyExpense',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Despesas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.2)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    makeChart('chartMonthlyExpense',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Despesas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const monthly={};
@@ -227,7 +249,7 @@ function renderChartMonthlyExpense(tx,insts){
   }
   const months=Object.keys(monthly).sort().slice(-12),values=months.map(m=>monthly[m]);
   if(!months.length){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartMonthlyExpense',{type:'bar',data:{labels:months,datasets:[{label:'Despesas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.2)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+  makeChart('chartMonthlyExpense',{type:'bar',data:{labels:months,datasets:[{label:'Despesas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
 function renderChartIncomePeriod(tx){
@@ -235,13 +257,13 @@ function renderChartIncomePeriod(tx){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     if(total===0){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-    makeChart('chartIncomePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Entradas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    makeChart('chartIncomePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Entradas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const periods={};tx.filter(t=>t.type==='income').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
   if(!labels.length){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartIncomePeriod',{type:'bar',data:{labels,datasets:[{label:'Entradas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+  makeChart('chartIncomePeriod',{type:'bar',data:{labels,datasets:[{label:'Entradas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
 function renderChartExpensePeriod(tx){
@@ -249,13 +271,13 @@ function renderChartExpensePeriod(tx){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     if(total===0){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-    makeChart('chartExpensePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Saídas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    makeChart('chartExpensePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Saídas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const periods={};tx.filter(t=>t.type==='expense').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
   if(!labels.length){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartExpensePeriod',{type:'bar',data:{labels,datasets:[{label:'Saídas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+  makeChart('chartExpensePeriod',{type:'bar',data:{labels,datasets:[{label:'Saídas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
 async function renderChartFutureCommitments(insts,debts){
@@ -292,8 +314,8 @@ async function renderChartFutureCommitments(insts,debts){
   makeChart('chartFutureCommitments',{
     type:'bar',data:{labels:months,datasets:[
       {label:'Parcelas',data:installVals,backgroundColor:'#8b5cf6',borderRadius:4},
-      {label:'Recorrentes',data:recVals,backgroundColor:'#f59e0b',borderRadius:4},
-      {label:'Contas Fixas',data:fixedVals,backgroundColor:'#22c55e',borderRadius:4}
+      {label:'Recorrentes',data:recVals,backgroundColor:'#fbbf24',borderRadius:4},
+      {label:'Contas Fixas',data:fixedVals,backgroundColor:'#34d399',borderRadius:4}
     ]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true,pointStyle:'circle'}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}
   });
 }
@@ -315,14 +337,14 @@ function renderChartComparison(tx){
     const incomes=periodTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const expenses=periodTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     if(!incomes&&!expenses){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'},{label:'Despesas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-    makeChart('chartComparison',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Receitas',data:[incomes],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')},{label:'Despesas',data:[expenses],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+    makeChart('chartComparison',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Receitas',data:[incomes],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')},{label:'Despesas',data:[expenses],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const monthly={};
   tx.forEach(t=>{const m=t.date.substring(0,7);if(!monthly[m])monthly[m]={income:0,expense:0};monthly[m][t.type]+=t.amount;});
   const months=Object.keys(monthly).sort().slice(-12),incomes=months.map(m=>monthly[m].income),expenses=months.map(m=>monthly[m].expense);
   if(!months.length){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'},{label:'Despesas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
-  makeChart('chartComparison',{type:'bar',data:{labels:months,datasets:[{label:'Receitas',data:incomes,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)')},{label:'Despesas',data:expenses,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
+  makeChart('chartComparison',{type:'bar',data:{labels:months,datasets:[{label:'Receitas',data:incomes,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')},{label:'Despesas',data:expenses,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
 function renderChartTopExpense(tx){
@@ -366,11 +388,11 @@ function renderChartIndebtedness(insts,debts,cards){
     return s+cardInsts.reduce((sum,i)=>sum+(i.installmentCount-i.paidInstallments)*i.installmentValue,0);
   },0);
   const labels=[],data=[],colors=[];
-  if(totalDebt>0){labels.push('Dívidas');data.push(totalDebt);colors.push('#ef4444');}
-  if(totalInstDebt>0){labels.push('Parcelas a Pagar');data.push(totalInstDebt);colors.push('#3b82f6');}
+  if(totalDebt>0){labels.push('Dívidas');data.push(totalDebt);colors.push('#f87171');}
+  if(totalInstDebt>0){labels.push('Parcelas a Pagar');data.push(totalInstDebt);colors.push('#818cf8');}
   if(creditUsed>0){labels.push('Crédito Utilizado');data.push(creditUsed);colors.push('#ec4899');}
   if(!data.length){makeChart('chartIndebtedness',{type:'doughnut',data:{labels:['Sem dívidas'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIndebtedness',[]);return;}
-  makeChart('chartIndebtedness',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#12141a'}]},options:doughnutOptions()});
+  makeChart('chartIndebtedness',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
   attachPieLegend('chartIndebtedness',labels,data,colors);
 }
 
@@ -405,9 +427,9 @@ async function renderChartCashFlow(tx,insts,debts){
   makeChart('chartCashFlow',{
     type:'bar',data:{labels,datasets:[
       {label:'Fluxo do Mês',data:projValues,borderRadius:4,backgroundColor:ctx=>{
-        const v=ctx.raw||0;return v>=0?barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#22c55e','rgba(34,197,94,0.15)'):barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#ef4444','rgba(239,68,68,0.15)');
+        const v=ctx.raw||0;return v>=0?barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)'):barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)');
       }},
-      {label:'Saldo Acumulado',data:cumulative,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.05)',fill:true,tension:0.4,pointRadius:2,type:'line',yAxisID:'y1'}
+      {label:'Saldo Acumulado',data:cumulative,borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.08)',fill:true,tension:0.4,pointRadius:2,type:'line',yAxisID:'y1'}
     ]},options:{
       responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
       scales:{y:{ticks:{callback:v=>formatCurrency(v)}},y1:{position:'right',ticks:{callback:v=>formatCurrency(v)},grid:{display:false}}}

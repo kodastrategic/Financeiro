@@ -34,7 +34,7 @@ async function loadCardsTable(){
     const recUsed=cardRecs.reduce((s,r)=>s+r.amount,0);
     const used=instUsed+recUsed;
     const avail=(c.limit||0)-used;
-    rows.push(`<tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color||'#3b82f6'};border:2px solid rgba(255,255,255,0.08)"></span></td><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.bank||'-')}</td><td>${formatCurrency(c.limit||0)}</td><td>${formatCurrency(Math.max(0,avail))}</td><td>${c.closingDay||'-'}</td><td>${c.dueDay||'-'}</td><td>${badge}</td><td><button class="btn-sm" onclick="openInvoiceModal(${c.id})">Ver Fatura</button><button class="btn-sm" onclick="editCard(${c.id})">Editar</button><button class="btn-sm danger" onclick="deleteCard(${c.id})">Excluir</button></td></tr>`);
+    rows.push(`<tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color||'#6366f1'};border:2px solid rgba(255,255,255,0.08)"></span></td><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.bank||'-')}</td><td>${formatCurrency(c.limit||0)}</td><td>${formatCurrency(Math.max(0,avail))}</td><td>${c.closingDay||'-'}</td><td>${c.dueDay||'-'}</td><td>${badge}</td><td><button class="btn-sm" onclick="openInvoiceModal(${c.id})">Ver Fatura</button><button class="btn-sm" onclick="editCard(${c.id})">Editar</button><button class="btn-sm danger" onclick="deleteCard(${c.id})">Excluir</button></td></tr>`);
   }
   tb.innerHTML=rows.join('');
 }
@@ -47,7 +47,7 @@ async function loadCardSelect(){
 async function editCard(id){
   const c=await db.cards.get(id);if(!c)return;
   editingCard=id;$('#cardName').value=c.name;$('#cardBank').value=c.bank||'';$('#cardLimit').value=c.limit||'';
-  $('#cardCloseDay').value=c.closingDay||'';$('#cardDueDay').value=c.dueDay||'';$('#cardColor').value=c.color||'#3b82f6';
+  $('#cardCloseDay').value=c.closingDay||'';$('#cardDueDay').value=c.dueDay||'';$('#cardColor').value=c.color||'#6366f1';
   $('#cardName').focus();document.querySelector('#cardForm .btn-primary').textContent='Salvar';
 }
 async function deleteCard(id){

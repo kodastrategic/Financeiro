@@ -1,6 +1,6 @@
 // ===== UTILITIES =====
-const COLORS_INCOME = ['#3b82f6','#22c55e','#8b5cf6','#06b6d4','#6366f1','#14b8a6','#a855f7','#0ea5e9','#10b981','#818cf8','#2dd4bf','#60a5fa','#34d399','#c084fc'];
-const COLORS_EXPENSE = ['#ef4444','#f97316','#eab308','#ec4899','#dc2626','#f59e0b','#d946ef','#fb923c','#facc15','#f43f5e','#fdba74','#e11d48','#f87171','#c026d3'];
+const COLORS_INCOME = ['#818cf8','#34d399','#a78bfa','#22d3ee','#6ee7b7','#fbbf24','#38bdf8','#2dd4bf','#93c5fd','#c084fc','#60a5fa','#a5f3fc','#10b981','#e0e7ff'];
+const COLORS_EXPENSE = ['#f87171','#fb923c','#fbbf24','#f472b6','#ef4444','#fca5a5','#c084fc','#fb7185','#facc15','#f43f5e','#fdba74','#f98171','#fda4af','#e879f9'];
 function pickColor(type){
   const used=new Set();
   const existing=window._allCategories||[];

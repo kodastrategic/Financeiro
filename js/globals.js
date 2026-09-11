@@ -3,16 +3,16 @@
 
 const SEED_CATEGORIES = [
   // Income — cool tones (blues, greens, purples, teals, indigos)
-  {name:'Salário',type:'income',color:'#3b82f6'},{name:'Freelance',type:'income',color:'#8b5cf6'},
-  {name:'Investimentos',type:'income',color:'#22c55e'},{name:'Vendas',type:'income',color:'#06b6d4'},
+  {name:'Salário',type:'income',color:'#818cf8'},{name:'Freelance',type:'income',color:'#8b5cf6'},
+  {name:'Investimentos',type:'income',color:'#34d399'},{name:'Vendas',type:'income',color:'#06b6d4'},
   {name:'Prêmio',type:'income',color:'#6366f1'},{name:'Outras Receitas',type:'income',color:'#14b8a6'},
   // Expense — warm tones (reds, oranges, yellows, pinks, ambers)
-  {name:'Alimentação',type:'expense',color:'#ef4444'},{name:'Contas Fixas',type:'expense',color:'#f97316'},
-  {name:'Mercado',type:'expense',color:'#eab308'},{name:'Transporte',type:'expense',color:'#ec4899'},
-  {name:'Lazer',type:'expense',color:'#dc2626'},{name:'Saúde',type:'expense',color:'#f59e0b'},
-  {name:'Educação',type:'expense',color:'#d946ef'},{name:'Moradia',type:'expense',color:'#fb923c'},
+  {name:'Alimentação',type:'expense',color:'#f87171'},{name:'Contas Fixas',type:'expense',color:'#fb923c'},
+  {name:'Mercado',type:'expense',color:'#fbbf24'},{name:'Transporte',type:'expense',color:'#f472b6'},
+  {name:'Lazer',type:'expense',color:'#fb7185'},{name:'Saúde',type:'expense',color:'#f59e0b'},
+  {name:'Educação',type:'expense',color:'#c084fc'},{name:'Moradia',type:'expense',color:'#fb923c'},
   {name:'Assinaturas',type:'expense',color:'#facc15'},{name:'Impostos',type:'expense',color:'#f43f5e'},
-  {name:'Emergência',type:'expense',color:'#fdba74'},{name:'Outras Despesas',type:'expense',color:'#e11d48'}
+  {name:'Emergência',type:'expense',color:'#fdba74'},{name:'Outras Despesas',type:'expense',color:'#f87171'}
 ];
 
 let charts={}, editingCategory=null, backupTimer=null, dashboardFilter='all', futureModalFilter='all';
