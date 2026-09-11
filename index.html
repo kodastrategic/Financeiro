@@ -52,19 +52,28 @@
 </section>
 
 <section id="dashboard" class="tab-content">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.5rem">
-<h2>Dashboard Financeiro</h2>
-<select id="globalMonthFilter" class="chart-month-filter" style="font-size:0.85rem;padding:0.4rem 0.8rem" title="Filtrar todo o dashboard por período">
-  <option value="all">📊 Todos os meses</option>
-</select>
-<div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-<button class="btn-secondary" onclick="document.getElementById('importInput').click()">📥 Importar</button>
-<button class="btn-secondary" onclick="exportData()">📤 Exportar</button>
-<button class="btn-primary" onclick="generateAndSaveReport()">📄 Relatório</button>
-<button class="btn-secondary" onclick="exportBackupToFile()">💾 Backup</button>
-<button class="btn-danger" onclick="clearAllData()">🗑️ Limpar</button>
-</div>
-<input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+<div class="dash-header">
+  <div class="dash-title">
+    <h2>Dashboard Financeiro</h2>
+    <span class="dash-subtitle" id="dashPeriodBadge"></span>
+  </div>
+  <div class="dash-tools">
+    <div class="dash-search-wrap">
+      <span class="dash-search-icon">🔍</span>
+      <input type="search" id="dashSearch" placeholder="Buscar transação..." autocomplete="off">
+    </div>
+    <select id="globalMonthFilter" class="chart-month-filter" title="Filtrar todo o dashboard por período">
+      <option value="all">📊 Todos os meses</option>
+    </select>
+    <div class="dash-actions">
+      <button class="btn-secondary icon-only" onclick="document.getElementById('importInput').click()" title="Importar (JSON)">📥</button>
+      <button class="btn-secondary icon-only" onclick="exportData()" title="Exportar (JSON)">📤</button>
+      <button class="btn-secondary icon-only" onclick="exportBackupToFile()" title="Backup">💾</button>
+      <button class="btn-primary icon-only" onclick="generateAndSaveReport()" title="Relatório">📄</button>
+      <button class="btn-danger icon-only" onclick="clearAllData()" title="Limpar todos os dados">🗑️</button>
+    </div>
+  </div>
+  <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
 </div>
 <div class="summary" id="dashboardSummary">
 <div class="card card-saldo"><span class="card-label">💰 Saldo Atual</span><span class="card-value" id="dBalance">R$ 0</span></div>
@@ -76,10 +85,63 @@
 <div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">📄 Contas Fixas</span><span class="card-value" id="dFixedExpenses">R$ 0</span></div>
 <div class="card card-subtle" onclick="openMonthExpenseModal()" style="cursor:pointer"><span class="card-label">📉 Despesas do Mês</span><span class="card-value" id="dMonthExpense">R$ 0</span></div>
 <div class="card card-subtle" onclick="openFutureInstallmentsModal()" style="cursor:pointer"><span class="card-label">📅 Parcelas Futuras</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
-<div class="card card-subtle"><span class="card-label">⚠️ Dívidas Atrasadas</span><span class="card-value" id="dOverdueDebt">R$ 0</span></div>
+<div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">⚠️ Em Atraso</span><span class="card-value" id="dOverdueDebt">R$ 0</span></div>
 <div class="card card-subtle"><span class="card-label">🏦 Crédito Usado</span><span class="card-value" id="dCreditUsed">0%</span></div>
 </div>
+<div class="dash-section">
+  <div class="section-head">
+    <h3>📈 Receitas por Categoria</h3>
+    <div class="section-head-side">
+      <span class="section-total" id="incomeSectionTotal">R$ 0</span>
+      <button class="btn-sm" onclick="focusExtract('income')">Ver todas →</button>
+    </div>
+  </div>
+  <div class="category-grid" id="incomeCategoryGrid"></div>
+</div>
+
+<div class="dash-section">
+  <div class="section-head">
+    <h3>📉 Despesas por Categoria</h3>
+    <div class="section-head-side">
+      <span class="section-total" id="expenseSectionTotal">R$ 0</span>
+      <button class="btn-sm" onclick="focusExtract('expense')">Ver todas →</button>
+    </div>
+  </div>
+  <div class="category-grid" id="expenseCategoryGrid"></div>
+</div>
+
 <div id="budgetAlerts" class="summary-subtle" style="display:none"></div>
+
+<div class="dash-section">
+  <div class="section-head">
+    <h3>🧾 Extrato Detalhado</h3>
+    <div class="section-head-side">
+      <span class="extract-total" id="extractTotal"></span>
+      <button class="btn-sm" onclick="clearExtractFilters()">✕ Limpar filtros</button>
+    </div>
+  </div>
+  <div class="extract-filters">
+    <select id="extractPeriod" class="chart-month-filter" title="Período"><option value="all">📅 Todos os períodos</option></select>
+    <select id="extractType" title="Tipo">
+      <option value="all">Todos os tipos</option>
+      <option value="income">💰 Receitas</option>
+      <option value="expense">💸 Despesas</option>
+    </select>
+    <select id="extractCategory" title="Categoria"><option value="all">Todas as categorias</option></select>
+    <div class="extract-search-wrap">
+      <span class="extract-search-icon">🔍</span>
+      <input type="search" id="extractSearch" placeholder="Buscar descrição..." autocomplete="off">
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="extract-table">
+      <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th style="text-align:right">Valor</th><th style="text-align:right">Ação</th></tr></thead>
+      <tbody id="extractBody"></tbody>
+    </table>
+  </div>
+  <p class="empty-state" id="extractEmpty" style="display:none">Nenhuma transação encontrada com os filtros atuais.</p>
+</div>
+
 <div class="charts-grid">
 <div class="chart-container full"><h3>📈 Evolução do Saldo (real + projetado)</h3><canvas id="chartBalanceLine"></canvas></div>
 <div class="chart-container"><h3>📊 Gastos por Categoria</h3><canvas id="chartExpenseCategory"></canvas></div>
@@ -365,8 +427,35 @@
   </div>
 </div>
 
+  <div class="modal-overlay" id="categoryModal" onclick="if(event.target===this)closeModal('categoryModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2><span id="categoryModalDot" style="display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:0.4rem;background:#3b82f6"></span><span id="categoryModalTitle"></span></h2>
+        <button class="btn-sm" onclick="closeModal('categoryModal')">✕</button>
+      </div>
+      <div class="modal-subheader" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+        <select id="categoryModalPeriod" class="chart-month-filter" onchange="renderCategoryModal()"><option value="all">📅 Todos os períodos</option></select>
+        <span id="categoryModalInfo"></span>
+      </div>
+      <div class="modal-body">
+        <div id="categoryModalBudget" style="margin-bottom:0.8rem"></div>
+        <div class="category-modal-chart"><canvas id="categoryModalChart"></canvas></div>
+        <div class="category-modal-items" id="categoryModalItems"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="supabase-config.js"></script>
   <script src="js/db.js"></script>
-  <script src="script.js"></script>
+  <script src="js/globals.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/commands.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/debts.js"></script>
+  <script src="js/bills.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

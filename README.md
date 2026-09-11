@@ -41,11 +41,20 @@ Todas as colunas em **lowercase** no PostgreSQL. O wrapper `js/db.js` faz o mape
 finance-app/
 ├── index.html            # Estrutura da interface
 ├── style.css             # Tema escuro completo
-├── script.js             # Toda a lógica do app
 ├── supabase-config.js    # Credenciais Supabase (URL + anonKey)
 ├── schema.sql            # Schema do banco PostgreSQL
 ├── js/
-│   └── db.js             # Wrapper Supabase com key mapping
+│   ├── db.js             # Wrapper Supabase com key mapping
+│   ├── globals.js        # Constantes, helpers de data e funções compartilhadas
+│   ├── utils.js          # Formatadores, cores, escapeHtml, notificações
+│   ├── chat.js           # Chat de comandos, autocomplete, editor de transação
+│   ├── dashboard.js      # Dashboard, 13 gráficos, extrato e modais de dashboard
+│   ├── commands.js       # Comandos, categorias, orçamentos, modal de criação
+│   ├── cards.js          # Cartões e modal de fatura
+│   ├── debts.js          # Parcelas (installments) e dívidas
+│   ├── bills.js          # Contas fixas, recorrentes e lógica de atraso
+│   ├── data.js           # Seed, backup, export/import, relatório
+│   └── main.js           # Init (DOMContentLoaded) e navegação de abas
 ├── README.md             # Este arquivo
 ├── .gitignore
 └── .git/
@@ -89,6 +98,32 @@ finance-app/
 
 ---
 
+## 🔧 Alterações da Sessão (11/09/2026) — Dashboard V2
+
+### Dashboard explorável
+- Novo header com busca global, filtro de mês e ações compactas (ícones com tooltip)
+- **Receitas/Despesas por Categoria**: grid de cards por categoria (cor, total do período, % , nº de lançamentos, mini-barra proporcional)
+  - Clique no card abre **modal de detalhes**: seleção de período, subtotal, progresso do orçamento (despesas), mini-gráfico mensal e lista completa de lançamentos (parcelas identificadas, editar/excluir/pagar)
+- **Extrato Detalhado**: tabela com todas as transações e filtros combináveis — período, tipo, categoria e busca por texto; total calculado por filtro; ações de editar/excluir por linha
+- "Ver todas →" em cada seção foca o extrato já filtrado (receitas/despesas)
+- Modal de categoria re-renderiza após refresh se estiver aberto
+
+### Contas atrasadas — competência x vencimento efetivo
+- O card `⚠️ Em Atraso` (era "Dívidas Atrasadas", que duplicava o card Dívidas) agora mostra o total de **contas fixas em atraso** por **consulta**, sem alterar/de-duplicar lançamentos
+- Conceito: a conta pertence sempre ao mês de **competência** (não muda de mês). O mês atual lista as contas do mês + uma seção **"⚠️ Em atraso (competências anteriores)"** com as competências não pagas cujo vencimento (`dueDay`, com clamp ao último dia do mês) já passou — puxadas da consulta `fixedpayments`, não duplicadas como novos lançamentos
+- **Sem cálculo automático de juros**: ao pagar uma competência em atraso o usuário informa o **valor real pago** (ex.: R$ 400 virou R$ 432) — o app entende o excedente como juros/multa e registra a transação pelo valor efetivo
+- Helpers em `js/bills.js`: `monthKeyOf`, `addMonths`, `getFixDueDate`, `getUnpaidCompetencias`, `getOverdueFixedTotal`, `promptFixedAmount`, `payOverdueFixed`
+
+### Estrutura
+- HTML: `index.html` — novas seções `.dash-section` + modal `#categoryModal`
+- CSS: `style.css` — bloco "DASHBOARD V2" (grid de categorias, extrato, filtros, responsivo mobile) + `.fixed-overdue-sec`
+- JS: `script.js` foi **dividido em módulos** em `js/` (globals, utils, chat, dashboard, commands, cards, debts, bills, data, main) — funções `setupExtract`, `renderCategorySections`, `renderCategoryGrid`, `openCategoryModal`, `renderCategoryModal`, `renderExtract`, `focusExtract`, `clearExtractFilters`, `updateExtractFilters`, `setupDashPeriodBadge` agora em `js/dashboard.js` (seção "DASHBOARD V2")
+
+### Testes
+- Validação com navegador headless + servidor local contra o banco real: 22 cards de categoria, 228 linhas no extrato, 13 gráficos renderizados, sem erro fatal de JS
+
+---
+
 ## 🔧 Alterações da Sessão (21/07/2026)
 
 ### Migração Dexie → Supabase (sessões anteriores)
@@ -121,20 +156,22 @@ finance-app/
 
 ---
 
-## 📂 Funções Principais (script.js)
+## 📂 Funções Principais (js/)
 
-| Função | Descrição |
-|--------|-----------|
-| `seedData()` | Popula categorias iniciais se vazio |
-| `processCommand(text)` | Processa comando do chat, exibe modal se não encontrado |
-| `executeCommand(keyword, amount)` | Executa comando, fallback para categoria, cria transação |
-| `showCreateCommandModal(keyword, amount, date)` | Modal de criação de comando não encontrado |
-| `showAutocomplete(input, box)` | Autocomplete combinado comandos + categorias |
-| `refreshDashboard()` | Atualiza cards e gráficos |
-| `renderChatHistory()` | Renderiza histórico de transações no chat |
-| `renderSummaryCards()` | Cards de resumo do dashboard |
-| `getAvgMonthly()` | Média mensal (3 meses) |
-| `getFutureMonthly()` | Projeção de compromissos futuros (12 meses) |
+| Função | Módulo | Descrição |
+|--------|--------|-----------|
+| `seedData()` | `data.js` | Popula categorias iniciais se vazio |
+| `processCommand(text)` | `chat.js` | Processa comando do chat, exibe modal se não encontrado |
+| `executeCommand(keyword, amount)` | `chat.js` | Executa comando, fallback para categoria, cria transação |
+| `showCreateCommandModal(keyword, amount, date)` | `commands.js` | Modal de criação de comando não encontrado |
+| `showAutocomplete(input, box)` | `chat.js` | Autocomplete combinado comandos + categorias |
+| `refreshDashboard()` | `dashboard.js` | Atualiza cards, gráficos, categorias e extrato |
+| `getUnpaidCompetencias(exp, paysSet, curKey)` | `bills.js` | Competências não pagas e já vencidas (lógica de atraso) |
+| `getOverdueFixedTotal()` | `bills.js` | Total de contas fixas em atraso (card `⚠️ Em Atraso`) |
+| `renderChatHistory()` | `chat.js` | Renderiza histórico de transações no chat |
+| `renderSummaryCards()` | `dashboard.js` | Cards de resumo do dashboard |
+| `getAvgMonthly()` | `dashboard.js` | Média mensal (3 meses) |
+| `getFutureMonthly()` | `dashboard.js` | Projeção de compromissos futuros (12 meses) |
 
 ---
 
@@ -164,7 +201,7 @@ finance-app/
 8. **Relatório em PDF** — substituir Markdown por PDF formatado
 
 ### 🔧 Qualidade de Código
-9. **Modularização do script.js** — separar em módulos (db, chat, dashboard, cards, modals, utils)
+9. ~~**Modularização do script.js**~~ (feito 11/09/2026 — separado em `js/globals|utils|chat|dashboard|commands|cards|debts|bills|data|main.js`)
 10. **Migrar `onclick=` para `addEventListener`** — remover event handlers inline do HTML
 
 ---
