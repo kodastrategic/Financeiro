@@ -1,20 +1,76 @@
 // ===== FIXED EXPENSES =====
+let editingFixedId=null;
+function resetFixedForm(){
+  $('#fixedForm').reset();
+  $('#fixedActive').checked=true;
+  $('#fixedStartMonth').value=todayLocal().substring(0,7);
+  editingFixedId=null;
+  const sb=$('#fixedSubmitBtn');if(sb)sb.textContent='Adicionar Conta';
+  const cb=$('#fixedCancelBtn');if(cb)cb.style.display='none';
+}
+function fixedErrorFriendly(err){
+  const msg=(err&&err.message)||String(err);
+  if(/PGRST204|startmonth|endmonth|could not find/i.test(msg)&&/fixedexpenses/i.test(msg)){
+    return 'Colunas Início/Término não existem ainda no banco. Rode no SQL Editor do Supabase: ALTER TABLE fixedexpenses ADD COLUMN IF NOT EXISTS startmonth TEXT; ALTER TABLE fixedexpenses ADD COLUMN IF NOT EXISTS endmonth TEXT;';
+  }
+  return 'Erro: '+msg;
+}
 function setupFixedForm(){
   $('#fixedStartMonth').value=todayLocal().substring(0,7);
   $('#fixedForm').addEventListener('submit',async(e)=>{
     e.preventDefault();
     const name=$('#fixedName').value.trim(),amount=parseFloat($('#fixedAmount').value)||0;
     const dueDay=parseInt($('#fixedDueDay').value)||null,category=$('#fixedCategory').value;
-    const startMonth=$('#fixedStartMonth').value||todayLocal().substring(0,7);
-    const endMonth=$('#fixedEndMonth').value||null;
+    const startMonth=$('#fixedStartMonth').value||'';
+    const endMonth=$('#fixedEndMonth').value||'';
     const active=$('#fixedActive').checked;
     if(!name||!amount)return showNotification('Preencha nome e valor.');
     if(endMonth&&endMonth<startMonth)return showNotification('Término deve ser depois do início.');
-    await db.fixedexpenses.add({name,amount,dueDay,category,active,startMonth,endMonth,createdAt:new Date().toISOString()});
-    $('#fixedForm').reset();$('#fixedActive').checked=true;$('#fixedStartMonth').value=todayLocal().substring(0,7);
-    await loadFixedTable();showNotification(`"${name}" adicionado!`);scheduleBackup();
+    const now=todayLocal().substring(0,7);
+    const rec={name,amount,dueDay,category,active,createdAt:new Date().toISOString()};
+    // Conta "contínua desde hoje" (sem Início explícito e sem Término) não exige
+    // as colunas novas no banco — se comporta igual à conta sem período.
+    const st=startMonth&&startMonth!==now?(startMonth):(editingFixedId&&startMonth?startMonth:'');
+    if(st)rec.startMonth=st;
+    if(endMonth)rec.endMonth=endMonth;
+    try{
+      if(editingFixedId){
+        await db.fixedexpenses.put({id:editingFixedId,...rec});
+        showNotification('Conta fixa atualizada!');
+      }else{
+        await db.fixedexpenses.add(rec);
+        showNotification(`"${name}" adicionado!`);
+      }
+      resetFixedForm();
+      await loadFixedTable();
+      scheduleBackup();
+    }catch(err){
+      showNotification(fixedErrorFriendly(err));
+    }
   });
+  const cb=$('#fixedCancelBtn');if(cb)cb.addEventListener('click',resetFixedForm);
 }
+function editFixed(id){
+  const exp=window._fixedCache&&window._fixedCache.find(e=>e.id===id);
+  const fill=async()=>{
+    const e=exp||await db.fixedexpenses.get(id);
+    if(!e)return showNotification('Conta não encontrada.');
+    editingFixedId=e.id;
+    $('#fixedName').value=e.name;
+    $('#fixedAmount').value=e.amount;
+    if(e.dueDay)$('#fixedDueDay').value=e.dueDay;
+    $('#fixedCategory').value=e.category||'';
+    $('#fixedStartMonth').value=e.startMonth||'';
+    $('#fixedEndMonth').value=e.endMonth||'';
+    $('#fixedActive').checked=e.active!==false;
+    $('#fixedSubmitBtn').textContent='Salvar';
+    $('#fixedCancelBtn').style.display='inline-block';
+    $('#fixedName').focus();
+    window.scrollTo({top:document.querySelector('#fixedForm').offsetTop-80,behavior:'smooth'});
+  };
+  fill();
+}
+function cancelEditFixed(){resetFixedForm();}
 function formatMonthRange(exp){
   const st=exp.startMonth||(exp.createdAt?exp.createdAt.substring(0,7):'');
   return `${st?formatMonthLabel(st):'-'}${exp.endMonth?` → ${formatMonthLabel(exp.endMonth)}`:' → contínua'}`;
@@ -28,10 +84,11 @@ function fixedAppliesMonth(exp,monthKey){
 }
 async function loadFixedTable(){
   const exps=await db.fixedexpenses.toArray(),tb=$('#fixedBody'),em=$('#emptyFixed');
+  window._fixedCache=exps;
   if(!tb)return;
   if(!exps.length){tb.innerHTML='';if(em)em.style.display='block';return;}
   if(em)em.style.display='none';
-  tb.innerHTML=exps.map(e=>`<tr><td>${escapeHtml(e.name)}</td><td>${formatCurrency(e.amount)}</td><td>${formatMonthRange(e)}</td><td>${escapeHtml(e.category)}</td><td><span class="${e.active?'badge-income':'badge-warning'}">${e.active?'Ativo':'Pausado'}</span></td><td><button class="btn-sm" onclick="toggleFixed(${e.id})">${e.active?'Pausar':'Ativar'}</button><button class="btn-sm danger" onclick="deleteFixed(${e.id})">Excluir</button></td></tr>`).join('');
+  tb.innerHTML=exps.map(e=>`<tr><td>${escapeHtml(e.name)}</td><td>${formatCurrency(e.amount)}</td><td>${formatMonthRange(e)}</td><td>${escapeHtml(e.category)}</td><td><span class="${e.active?'badge-income':'badge-warning'}">${e.active?'Ativo':'Pausado'}</span></td><td><button class="btn-sm" onclick="toggleFixed(${e.id})">${e.active?'Pausar':'Ativar'}</button><button class="btn-sm" onclick="editFixed(${e.id})">Editar</button><button class="btn-sm danger" onclick="deleteFixed(${e.id})">Excluir</button></td></tr>`).join('');
 }
 async function toggleFixed(id){
   const e=await db.fixedexpenses.get(id);if(!e)return;
