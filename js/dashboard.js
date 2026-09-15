@@ -3,19 +3,19 @@ if(window.Chart){
   const fontFamily=typeof getComputedStyle==='function'?(getComputedStyle(document.body).fontFamily||"'Segoe UI',Roboto,sans-serif"):"'Segoe UI',Roboto,sans-serif";
   Chart.defaults.font.family=fontFamily;
   Chart.defaults.font.size=11;
-  Chart.defaults.color='#9aa6b8';
-  Chart.defaults.borderColor='rgba(148,163,184,0.08)';
-  Chart.defaults.plugins.tooltip.backgroundColor='rgba(10,13,18,0.94)';
-  Chart.defaults.plugins.tooltip.titleColor='#e9edf4';
-  Chart.defaults.plugins.tooltip.bodyColor='#c6d0e0';
-  Chart.defaults.plugins.tooltip.borderColor='rgba(129,140,248,0.35)';
+  Chart.defaults.color='#6e6e73';
+  Chart.defaults.borderColor='rgba(0,0,0,0.06)';
+  Chart.defaults.plugins.tooltip.backgroundColor='rgba(28,28,30,0.94)';
+  Chart.defaults.plugins.tooltip.titleColor='#ffffff';
+  Chart.defaults.plugins.tooltip.bodyColor='#d1d1d6';
+  Chart.defaults.plugins.tooltip.borderColor='rgba(0,0,0,0.12)';
   Chart.defaults.plugins.tooltip.borderWidth=1;
   Chart.defaults.plugins.tooltip.padding=10;
   Chart.defaults.plugins.tooltip.cornerRadius=10;
   Chart.defaults.plugins.tooltip.boxPadding=4;
   Chart.defaults.animation.duration=600;
   Chart.defaults.animation.easing='easeOutQuart';
-  if(Chart.defaults.scales){const _sc=Chart.defaults.scales.linear;if(_sc&&_sc.grid)_sc.grid.color='rgba(148,163,184,0.08)';if(_sc&&_sc.ticks)_sc.ticks.color='#5f6b7d';if(_sc&&_sc.border)_sc.border.display=false;}
+  if(Chart.defaults.scales){const _sc=Chart.defaults.scales.linear;if(_sc&&_sc.grid)_sc.grid.color='rgba(0,0,0,0.06)';if(_sc&&_sc.ticks)_sc.ticks.color='#98989d';if(_sc&&_sc.border)_sc.border.display=false;}
   const _legendLabels=Chart.defaults.plugins.legend.labels||(Chart.defaults.plugins.legend.labels={});
   _legendLabels.usePointStyle=true;
   _legendLabels.boxWidth=8;
@@ -152,7 +152,7 @@ async function renderChartBalanceLine(tx){
   const daily={};let running=0;
   for(const t of sorted){running+=t.type==='income'?t.amount:-t.amount;daily[t.date]=running;}
   const dates=Object.keys(daily).sort(),vals=dates.map(d=>daily[d]);
-  if(!dates.length){makeChart('chartBalanceLine',{type:'line',data:{labels:['Sem dados'],datasets:[{data:[0],borderColor:'rgba(255,255,255,0.08)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!dates.length){makeChart('chartBalanceLine',{type:'line',data:{labels:['Sem dados'],datasets:[{data:[0],borderColor:'rgba(0,0,0,0.1)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   const lastDate=new Date(dates[dates.length-1]+'T12:00:00'),lastVal=vals[vals.length-1];
   const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
   const months=await getFutureMonthly();
@@ -184,8 +184,8 @@ function renderChartExpenseCategory(tx){
   const sorted=labels.map((l,i)=>({l,v:data[i]})).sort((a,b)=>b.v-a.v);
   labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
   const colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartExpenseCategory',[]);return;}
-  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
+  if(!labels.length){makeChart('chartExpenseCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(0,0,0,0.06)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartExpenseCategory',[]);return;}
+  makeChart('chartExpenseCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#ffffff'}]},options:doughnutOptions()});
   attachPieLegend('chartExpenseCategory',labels,data,colors);
 }
 
@@ -195,8 +195,8 @@ function renderChartIncomeCategory(tx){
   const sorted=labels.map((l,i)=>({l,v:data[i]})).sort((a,b)=>b.v-a.v);
   labels=sorted.map(x=>x.l);data=sorted.map(x=>x.v);
   const colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIncomeCategory',[]);return;}
-  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#0a0d12'}]},options:doughnutOptions()});
+  if(!labels.length){makeChart('chartIncomeCategory',{type:'doughnut',data:{labels:['Sem dados'],datasets:[{data:[1],backgroundColor:['rgba(0,0,0,0.06)'],borderWidth:0}]},options:doughnutOptions()});attachPieLegend('chartIncomeCategory',[]);return;}
+  makeChart('chartIncomeCategory',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#ffffff'}]},options:doughnutOptions()});
   attachPieLegend('chartIncomeCategory',labels,data,colors);
 }
 
@@ -204,14 +204,14 @@ function renderChartMonthlyExpense(tx){
   if(dashboardFilter!=='all'){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    if(total===0){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    if(total===0){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
     makeChart('chartMonthlyExpense',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Despesas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const monthly={};
   for(const t of tx.filter(t=>t.type==='expense')){const m=t.date.substring(0,7);monthly[m]=(monthly[m]||0)+t.amount;}
   const months=Object.keys(monthly).sort().slice(-12),values=months.map(m=>monthly[m]);
-  if(!months.length){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!months.length){makeChart('chartMonthlyExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartMonthlyExpense',{type:'bar',data:{labels:months,datasets:[{label:'Despesas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.16)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -219,13 +219,13 @@ function renderChartIncomePeriod(tx){
   if(dashboardFilter!=='all'){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    if(total===0){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    if(total===0){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
     makeChart('chartIncomePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Entradas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const periods={};tx.filter(t=>t.type==='income').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
-  if(!labels.length){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!labels.length){makeChart('chartIncomePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartIncomePeriod',{type:'bar',data:{labels,datasets:[{label:'Entradas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -233,13 +233,13 @@ function renderChartExpensePeriod(tx){
   if(dashboardFilter!=='all'){
     const target=dashboardFilter;
     const total=filterTxByMonth(tx,target).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    if(total===0){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    if(total===0){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
     makeChart('chartExpensePeriod',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Saídas',data:[total],borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const periods={};tx.filter(t=>t.type==='expense').forEach(t=>{const p=t.date.substring(0,7);periods[p]=(periods[p]||0)+t.amount;});
   const labels=Object.keys(periods).sort().slice(-12),values=labels.map(l=>periods[l]);
-  if(!labels.length){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!labels.length){makeChart('chartExpensePeriod',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartExpensePeriod',{type:'bar',data:{labels,datasets:[{label:'Saídas',data:values,borderRadius:6,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -249,7 +249,7 @@ function renderChartInvestmentLine(tx){
   const daily={};let running=0;
   sorted.forEach(t=>{running+=t.type==='income'?t.amount:-t.amount;daily[t.date]=running;});
   const dates=Object.keys(daily).sort(),vals=dates.map(d=>daily[d]);
-  if(!dates.length){makeChart('chartInvestmentLine',{type:'line',data:{labels:['Sem dados'],datasets:[{data:[0],borderColor:'rgba(255,255,255,0.08)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!dates.length){makeChart('chartInvestmentLine',{type:'line',data:{labels:['Sem dados'],datasets:[{data:[0],borderColor:'rgba(0,0,0,0.1)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartInvestmentLine',{type:'line',data:{labels:dates.map(d=>formatDateShort(d)),datasets:[{label:'Investimentos',data:vals,borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,0.08)',fill:true,tension:0.4,pointRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -259,14 +259,14 @@ function renderChartComparison(tx){
     const periodTx=filterTxByMonth(tx,target);
     const incomes=periodTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const expenses=periodTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    if(!incomes&&!expenses){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'},{label:'Despesas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+    if(!incomes&&!expenses){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(0,0,0,0.06)'},{label:'Despesas',data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
     makeChart('chartComparison',{type:'bar',data:{labels:[formatMonthLabel(target)],datasets:[{label:'Receitas',data:[incomes],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')},{label:'Despesas',data:[expenses],borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
     return;
   }
   const monthly={};
   tx.forEach(t=>{const m=t.date.substring(0,7);if(!monthly[m])monthly[m]={income:0,expense:0};monthly[m][t.type]+=t.amount;});
   const months=Object.keys(monthly).sort().slice(-12),incomes=months.map(m=>monthly[m].income),expenses=months.map(m=>monthly[m].expense);
-  if(!months.length){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'},{label:'Despesas',data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
+  if(!months.length){makeChart('chartComparison',{type:'bar',data:{labels:['Sem dados'],datasets:[{label:'Receitas',data:[0],backgroundColor:'rgba(0,0,0,0.06)'},{label:'Despesas',data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,plugins:{legend:{display:false}}}});return;}
   makeChart('chartComparison',{type:'bar',data:{labels:months,datasets:[{label:'Receitas',data:incomes,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#34d399','rgba(52,211,153,0.14)')},{label:'Despesas',data:expenses,borderRadius:4,backgroundColor:ctx=>barGradient(ctx.chart.ctx,ctx.chart.chartArea,'#f87171','rgba(248,113,113,0.12)')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -275,7 +275,7 @@ function renderChartTopExpense(tx){
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
   const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartTopExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
+  if(!labels.length){makeChart('chartTopExpense',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
   makeChart('chartTopExpense',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
@@ -284,7 +284,7 @@ function renderChartTopIncome(tx){
   const groups={};filtered.forEach(t=>{groups[t.category]=(groups[t.category]||0)+t.amount;});
   const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
   const labels=sorted.slice(0,8).map(e=>e[0]),values=sorted.slice(0,8).map(e=>e[1]),colors=labels.map(l=>catColor(l));
-  if(!labels.length){makeChart('chartTopIncome',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(255,255,255,0.04)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
+  if(!labels.length){makeChart('chartTopIncome',{type:'bar',data:{labels:['Sem dados'],datasets:[{data:[0],backgroundColor:'rgba(0,0,0,0.06)'}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});return;}
   makeChart('chartTopIncome',{type:'bar',data:{labels,datasets:[{data:values,borderRadius:4,backgroundColor:colors}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>formatCurrency(v)}}}}});
 }
 
