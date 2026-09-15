@@ -25,13 +25,9 @@ function setupFixedForm(){
     const endMonth=$('#fixedEndMonth').value||'';
     const active=$('#fixedActive').checked;
     if(!name||!amount)return showNotification('Preencha nome e valor.');
+    if(!startMonth)return showNotification('Informe a data de início.');
     if(endMonth&&endMonth<startMonth)return showNotification('Término deve ser depois do início.');
-    const now=todayLocal().substring(0,7);
-    const rec={name,amount,dueDay,category,active,createdAt:new Date().toISOString()};
-    // Conta "contínua desde hoje" (sem Início explícito e sem Término) não exige
-    // as colunas novas no banco — se comporta igual à conta sem período.
-    const st=startMonth&&startMonth!==now?(startMonth):(editingFixedId&&startMonth?startMonth:'');
-    if(st)rec.startMonth=st;
+    const rec={name,amount,dueDay,category,active,startMonth,createdAt:new Date().toISOString()};
     if(endMonth)rec.endMonth=endMonth;
     try{
       if(editingFixedId){
@@ -60,7 +56,7 @@ function editFixed(id){
     $('#fixedAmount').value=e.amount;
     if(e.dueDay)$('#fixedDueDay').value=e.dueDay;
     $('#fixedCategory').value=e.category||'';
-    $('#fixedStartMonth').value=e.startMonth||'';
+    $('#fixedStartMonth').value=e.startMonth||(e.createdAt?e.createdAt.substring(0,7):todayLocal().substring(0,7));
     $('#fixedEndMonth').value=e.endMonth||'';
     $('#fixedActive').checked=e.active!==false;
     $('#fixedSubmitBtn').textContent='Salvar';

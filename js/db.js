@@ -21,7 +21,8 @@
     purchasedate:'purchaseDate', firstinstallmentdate:'firstInstallmentDate',
     paidinstallments:'paidInstallments', debtid:'debtId', monthkey:'monthKey',
     startdate:'startDate', expenseid:'expenseId', cardid:'cardId',
-    originalamount:'originalAmount', currentamount:'currentAmount'
+    originalamount:'originalAmount', currentamount:'currentAmount',
+    startmonth:'startMonth', endmonth:'endMonth'
   };
 
   // Reverse: JS camelCase → DB lowercase column
