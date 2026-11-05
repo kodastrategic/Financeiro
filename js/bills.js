@@ -136,18 +136,20 @@ function getUnpaidCompetencias(exp,paysSet,curKey,fromKey){
   }
   return out;
 }
-async function getOverdueFixedTotal(exps){
+async function getOverdueFixedItems(exps,paysSet,curKey){
   const list=exps||await db.fixedexpenses.toArray();
-  const pays=await db.fixedpayments.toArray();
-  const paysSet=new Set(pays.map(p=>p.expenseId+':'+p.monthKey));
-  const curKey=currentMonthKey();
-  let total=0;
+  const paid=paysSet||new Set((await db.fixedpayments.toArray()).map(p=>p.expenseId+':'+p.monthKey));
+  const month=curKey||currentMonthKey();
+  const overdue=[];
   for(const exp of list){
     if(!exp.active)continue;
-    const unpaid=getUnpaidCompetencias(exp,paysSet,curKey);
-    for(const u of unpaid)total+=exp.amount;
+    for(const item of getUnpaidCompetencias(exp,paid,month))overdue.push({exp,...item});
   }
-  return total;
+  return overdue;
+}
+async function getOverdueFixedTotal(exps){
+  const overdue=await getOverdueFixedItems(exps);
+  return overdue.reduce((total,item)=>total+item.exp.amount,0);
 }
 function promptFixedAmount(exp,monthKey){
   const label=`"${exp.name}" (competência ${monthKey.replace('-','/')})`;

@@ -218,6 +218,8 @@ async function renderChatBanner(){
     const now=new Date();
     const cur=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const paidSet=new Set(fixedPays.map(p=>p.expenseId+':'+p.monthKey));
+    const overdueItems=await getOverdueFixedItems(fixedAll,paidSet,cur);
+    const overdueTotal=overdueItems.reduce((sum,item)=>sum+item.exp.amount,0);
     let total=0;
     for(const f of fixedAll){
       if(!f.active)continue;
@@ -226,11 +228,9 @@ async function renderChatBanner(){
       if(f.endMonth&&cur>f.endMonth)continue;
       if(!paidSet.has(f.id+':'+cur)){total+=f.amount;}
     }
-    if(total<=0){el.style.display='none';return;}
+    if(total<=0&&!overdueItems.length){el.style.display='none';return;}
     const monthName=MESES_EXT[now.getMonth()];
-    el.style.display='block';
-    el.innerHTML=`<div class="banner-balance"><span class="banner-label">Saldo atual</span><strong class="banner-value ${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>
-      <button type="button" class="banner-commitment" onclick="openFutureInstallmentsModal('current')" aria-label="Ver saldo comprometido em ${monthName} e abrir compromissos futuros">
+    const commitment=total>0?`<button type="button" class="banner-commitment" onclick="openFutureInstallmentsModal('current')" aria-label="Ver saldo comprometido em ${monthName} e abrir compromissos futuros">
         <span class="banner-commitment-icon" aria-hidden="true">📅</span>
         <span class="banner-commitment-copy">
           <span class="banner-commitment-title">Saldo comprometido</span>
@@ -240,6 +240,17 @@ async function renderChatBanner(){
           <strong class="banner-commitment-value">${formatCurrency(total)}</strong>
           <svg class="banner-commitment-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </span>
-      </button>`;
+      </button>`:'';
+    const overdueCard=overdueItems.length?`<button type="button" class="banner-overdue" onclick="openFixedModal('${cur}')" aria-label="Ver ${overdueItems.length} ${overdueItems.length===1?'conta atrasada':'contas atrasadas'}, total ${formatCurrency(overdueTotal)}">
+        <span class="banner-overdue-icon" aria-hidden="true">!</span>
+        <span class="banner-overdue-copy">
+          <strong>${overdueItems.length} conta${overdueItems.length===1?'':'s'} em atraso</strong>
+          <span>Total em atraso: ${formatCurrency(overdueTotal)}</span>
+        </span>
+        <svg class="banner-overdue-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>`:'';
+    el.style.display='block';
+    el.innerHTML=`<div class="banner-balance"><span class="banner-label">Saldo atual</span><strong class="banner-value ${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>
+      ${overdueCard}${commitment}`;
   }catch(e){console.error(e);}
 }

@@ -84,20 +84,23 @@ function futureMonthHTML(data,key,filter){
       <span class="future-month-total">${formatCurrency(total)}</span>
       <span class="future-chev" aria-hidden="true">⌄</span>
     </summary>
-    <div class="future-items">${month.items.map((i,n)=>futureItemHTML(i,n,data.paidFixed)).join('')}</div>
+    <div class="future-items">${month.items.map(i=>futureItemHTML(i,data.paidFixed)).join('')}</div>
   </details>`;
 }
-function futureItemHTML(i,n,paidFixed){
+function futureItemHTML(i,paidFixed){
   const paid=paidFixed.has(i.id+':'+i.monthKey);
-  const due=i.dueDay?`dia ${i.dueDay}`:'sem dia';
+  const dueDate=getFixDueDate(i,i.monthKey);
+  const overdue=!paid&&dueDate<todayLocal();
+  const due=i.dueDay?`dia ${parseInt(dueDate.slice(-2),10)}`:'sem dia';
+  const status=paid?'Paga':overdue?'Em atraso':'Pendente';
   const action=paid
     ? `<button class="btn-sm future-paid" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">Paga</button>`
     : `<button class="btn-sm future-pay" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">Pagar</button>`;
-  return `<div class="future-item${paid?' is-paid':''}">
-    <span class="future-order">${n+1}</span>
+  return `<div class="future-item${paid?' is-paid':''}${overdue?' is-overdue':''}">
+    <span class="future-due${overdue?' is-overdue':''}">${due}</span>
     <div class="future-item-main">
-      <div class="future-item-title">${escapeHtml(i.description)} <span class="future-due">${due}</span></div>
-      <div class="future-item-sub">${escapeHtml(i.category)} · ${paid?'Paga':'Pendente'}</div>
+      <div class="future-item-title">${escapeHtml(i.description)}</div>
+      <div class="future-item-sub">${escapeHtml(i.category)} · <span class="future-item-status${overdue?' is-overdue':''}">${status}</span></div>
     </div>
     <span class="future-item-value">${formatCurrency(i.value)}</span>
     ${action}

@@ -452,6 +452,42 @@ nav {
 .banner-commitment-side { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 .banner-commitment-value { font-size: 0.95rem; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; }
 .banner-commitment-chev { color: var(--warn); opacity: 0.85; }
+.banner-overdue {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(255, 69, 58, 0.12);
+  border: 1px solid rgba(255, 69, 58, 0.38);
+  border-left: 3px solid var(--expense);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+.banner-overdue:hover { background: rgba(255, 69, 58, 0.18); border-color: var(--expense); transform: translateY(-1px); }
+.banner-overdue:active { transform: translateY(0); }
+.banner-overdue:focus-visible { outline: 2px solid var(--expense); outline-offset: 2px; }
+.banner-overdue-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(255, 69, 58, 0.18);
+  color: var(--expense);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+.banner-overdue-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.banner-overdue-copy strong { color: var(--expense); font-size: 0.82rem; }
+.banner-overdue-copy span { color: var(--text-secondary); font-size: 0.72rem; }
+.banner-overdue-chev { flex-shrink: 0; color: var(--expense); opacity: 0.9; }
 .banner-btn {
   background: var(--warn-soft);
   color: var(--warn);
@@ -1194,17 +1230,27 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   background: rgba(255, 255, 255, 0.025);
 }
 .future-item.is-paid { opacity: 0.55; }
-.future-order {
-  width: 22px;
-  height: 22px;
+.future-item.is-overdue {
+  border-color: rgba(255, 69, 58, 0.38);
+  background: rgba(255, 69, 58, 0.055);
+}
+.future-due {
+  min-width: 52px;
   flex-shrink: 0;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent-hover);
-  font-size: 0.68rem;
+  padding: 0.28rem 0.45rem;
+  border-radius: 7px;
+  background: rgba(255, 159, 10, 0.12);
+  color: var(--warn);
+  font-size: 0.66rem;
   font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.future-due.is-overdue {
+  background: rgba(255, 69, 58, 0.14);
+  color: var(--expense);
 }
 .future-item-main { flex: 1; min-width: 0; }
 .future-item-title {
@@ -1215,19 +1261,11 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.future-due {
-  margin-left: 0.3rem;
-  padding: 0.08rem 0.4rem;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 159, 10, 0.12);
-  color: var(--warn);
-  font-size: 0.66rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
 .future-item-sub { margin-top: 0.1rem; font-size: 0.7rem; color: var(--text-muted); }
+.future-item-status.is-overdue { color: var(--expense); font-weight: 700; }
 .future-item-value { flex-shrink: 0; font-size: 0.84rem; font-weight: 700; color: var(--expense); font-variant-numeric: tabular-nums; }
 .future-pay { background: rgba(255, 159, 10, 0.15); color: var(--warn); border-color: rgba(255, 159, 10, 0.32); }
+.future-item.is-overdue .future-pay { background: rgba(255, 69, 58, 0.13); color: var(--expense); border-color: rgba(255, 69, 58, 0.35); }
 .future-paid { background: rgba(34, 197, 94, 0.12); color: var(--income); border-color: rgba(34, 197, 94, 0.3); }
 
 .invoice-month-items { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem; }
