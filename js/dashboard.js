@@ -385,7 +385,7 @@ async function openProjectedModal(){
 }
 
 // ===== MODAL FUTURE COMMITMENTS =====
-async function openFutureInstallmentsModal(filter){
+async function _openFutureInstallmentsModalLegacy(filter){
   filter=filter||'all';futureModalFilter=filter;
   const fixedAll=(await db.fixedexpenses.toArray()).filter(e=>e.active);
   const allFixedPayments=await db.fixedpayments.toArray();

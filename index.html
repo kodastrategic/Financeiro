@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261105-2">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -79,7 +79,7 @@
 <div class="summary-subtle">
 <div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">📄 Contas Fixas</span><span class="card-value" id="dFixedExpenses">R$ 0</span></div>
 <div class="card card-subtle" onclick="openTypeModal('expense')" style="cursor:pointer"><span class="card-label">📉 Despesas do Mês</span><span class="card-value" id="dMonthExpense">R$ 0</span></div>
-<div class="card card-subtle" onclick="openFutureInstallmentsModal('all')" style="cursor:pointer"><span class="card-label">📅 Compromissos Futuros</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
+<div class="card card-subtle" onclick="openFutureInstallmentsModal('current')" style="cursor:pointer"><span class="card-label">📅 Compromissos Futuros</span><span class="card-value" id="dFutureInstallments">R$ 0</span></div>
 <div class="card card-subtle" onclick="openFixedModal()" style="cursor:pointer"><span class="card-label">⚠️ Em Atraso</span><span class="card-value" id="dOverdueDebt">R$ 0</span></div>
 </div>
 <div id="budgetAlerts" class="summary-subtle" style="display:none"></div>
@@ -329,15 +329,16 @@
   </div>
 
   <script src="supabase-config.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/globals.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/chat.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script src="js/commands.js"></script>
-  <script src="js/debts.js"></script>
-  <script src="js/bills.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/db.js?v=20261105-2"></script>
+  <script src="js/globals.js?v=20261105-2"></script>
+  <script src="js/utils.js?v=20261105-2"></script>
+  <script src="js/chat.js?v=20261105-2"></script>
+  <script src="js/dashboard.js?v=20261105-2"></script>
+  <script src="js/future.js?v=20261105-2"></script>
+  <script src="js/commands.js?v=20261105-2"></script>
+  <script src="js/debts.js?v=20261105-2"></script>
+  <script src="js/bills.js?v=20261105-2"></script>
+  <script src="js/data.js?v=20261105-2"></script>
+  <script src="js/main.js?v=20261105-2"></script>
 </body>
 </html>

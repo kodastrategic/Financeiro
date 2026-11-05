@@ -2,6 +2,8 @@
 function setupChat(){
   const input=$('#chatInput'), send=$('#chatSend'), box=$('#autocompleteBox');
   let autoTimer;
+  input.addEventListener('focus',()=>showAutocomplete(input,box));
+  input.addEventListener('blur',()=>setTimeout(()=>hideAutocomplete(box),200));
   input.addEventListener('input',()=>{
     clearTimeout(autoTimer);
     autoTimer=setTimeout(()=>showAutocomplete(input,box),150);
@@ -22,7 +24,8 @@ async function showAutocomplete(input,box){
   const text=input.value;
   const cmds=await db.commands.toArray();
   if(!cmds.length){box.style.display='none';return;}
-  let filtered, prefix;
+  let filtered,prefix,isRecent=false;
+  let counts={},lastUsed={};
   // Monta lista combinada: comandos + categorias (como fallback)
   const cats=await db.categories.toArray();
   const allEntries=[];
@@ -40,16 +43,23 @@ async function showAutocomplete(input,box){
     const partial=normalizeKey(text);
     filtered=allEntries.filter(c=>normalizeKey(c.keyword).includes(partial));
   }else{
-    // Vazio — mostra os mais usados
+    // Foco/vazio — 5 comandos usados mais recentemente
+    isRecent=true;
     prefix='';
     const all=await db.transactions.toArray();
-    const counts={};for(const t of all)if(t.command)counts[t.command]=(counts[t.command]||0)+1;
-    allEntries.sort((a,b)=>(counts[b.keyword]||0)-(counts[a.keyword]||0));
-    filtered=allEntries;
+    for(const t of all){
+      if(!t.command)continue;
+      counts[t.command]=(counts[t.command]||0)+1;
+      const ref=t.date||t.createdAt||'';
+      if(!lastUsed[t.command]||ref>lastUsed[t.command])lastUsed[t.command]=ref;
+    }
+    const used=allEntries.filter(c=>counts[c.keyword]);
+    used.sort((a,b)=>(lastUsed[b.keyword]||'').localeCompare(lastUsed[a.keyword]||'')||(counts[b.keyword]||0)-(counts[a.keyword]||0));
+    filtered=used.slice(0,5);
   }
   filtered=filtered.slice(0,8);
   if(!filtered.length||text.includes(' ')){box.style.display='none';return;}
-  box.innerHTML=filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('${prefix}${c.keyword} ')">${prefix}${c.keyword} <span style="color:${c.type==='income'?'#34d399':'#f87171'};font-size:0.75rem">${c.category}</span></div>`).join('');
+  box.innerHTML=(isRecent?'<div class="auto-label">Mais recentes</div>':'')+filtered.map(c=>`<div data-keyword="${c.keyword}" data-category="${c.category}" data-type="${c.type}" onclick="selectAutocompleteItem('${prefix}${c.keyword} ')">${prefix}${c.keyword} <span style="color:${c.type==='income'?'#34d399':'#f87171'};font-size:0.75rem">${c.category}${isRecent?` · ${formatDateShort(lastUsed[c.keyword]||'')}`:''}</span></div>`).join('');
   box.style.display='block';
 }
 function selectAutocompleteItem(val){
@@ -219,6 +229,17 @@ async function renderChatBanner(){
     if(total<=0){el.style.display='none';return;}
     const monthName=MESES_EXT[now.getMonth()];
     el.style.display='block';
-    el.innerHTML=`<div class="banner-line"><span class="banner-label">Saldo Atual</span><strong class="banner-value ${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div><div class="banner-line"><span class="banner-label">Saldo comprometido em ${monthName}</span><button class="btn-sm banner-btn" onclick="openFutureInstallmentsModal('all')">${formatCurrency(total)} →</button></div>`;
+    el.innerHTML=`<div class="banner-balance"><span class="banner-label">Saldo atual</span><strong class="banner-value ${balance>=0?'banner-income':'banner-expense'}">${formatCurrency(balance)}</strong></div>
+      <button type="button" class="banner-commitment" onclick="openFutureInstallmentsModal('current')" aria-label="Ver saldo comprometido em ${monthName} e abrir compromissos futuros">
+        <span class="banner-commitment-icon" aria-hidden="true">📅</span>
+        <span class="banner-commitment-copy">
+          <span class="banner-commitment-title">Saldo comprometido</span>
+          <span class="banner-commitment-hint">${monthName} · ver contas e pagar</span>
+        </span>
+        <span class="banner-commitment-side">
+          <strong class="banner-commitment-value">${formatCurrency(total)}</strong>
+          <svg class="banner-commitment-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </button>`;
   }catch(e){console.error(e);}
 }

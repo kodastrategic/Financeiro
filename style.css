@@ -406,6 +406,7 @@ nav {
   color: var(--text-primary);
   flex-shrink: 0;
 }
+.banner-balance { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0 0.2rem 0.55rem; border-bottom: 1px dashed rgba(255, 159, 10, 0.22); }
 .banner-line { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .banner-line + .banner-line { margin-top: 0.45rem; }
 .banner-label {
@@ -416,6 +417,41 @@ nav {
   font-weight: 600;
 }
 .banner-value { font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.banner-commitment {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(255, 159, 10, 0.1);
+  border: 1px solid rgba(255, 159, 10, 0.32);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+.banner-commitment:hover { background: rgba(255, 159, 10, 0.18); border-color: var(--warn); transform: translateY(-1px); }
+.banner-commitment:active { transform: translateY(0); }
+.banner-commitment:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.banner-commitment-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(255, 159, 10, 0.16);
+  font-size: 1.05rem;
+}
+.banner-commitment-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.banner-commitment-title { font-size: 0.8rem; font-weight: 700; color: var(--warn); }
+.banner-commitment-hint { font-size: 0.7rem; color: var(--text-secondary); }
+.banner-commitment-side { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.banner-commitment-value { font-size: 0.95rem; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; }
+.banner-commitment-chev { color: var(--warn); opacity: 0.85; }
 .banner-btn {
   background: var(--warn-soft);
   color: var(--warn);
@@ -458,6 +494,15 @@ nav {
   border-bottom: 1px solid var(--border);
 }
 .autocomplete-box div:last-child { border-bottom: none; }
+.autocomplete-box .auto-label {
+  padding: 0.5rem 0.9rem 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: default;
+}
 .autocomplete-box div:hover { background: var(--accent-soft); }
 .autocomplete-box .auto-item:hover { background: var(--accent-soft); }
 
@@ -1079,6 +1124,112 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   font-variant-numeric: tabular-nums;
 }
 
+/* Compromissos futuros (modal v2) */
+.future-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.future-toolbar label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.future-current-total {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.future-current-total strong { color: var(--expense); font-variant-numeric: tabular-nums; }
+.future-month {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+.future-month[open] { border-color: var(--border-strong); }
+.future-month-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.future-month-summary::-webkit-details-marker { display: none; }
+.future-month-summary:hover { background: rgba(255, 255, 255, 0.03); }
+.future-month-label { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+.future-now {
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.future-month-meta { font-size: 0.72rem; color: var(--text-muted); }
+.future-month-total { margin-left: auto; font-size: 0.9rem; font-weight: 700; color: var(--expense); font-variant-numeric: tabular-nums; }
+.future-chev { color: var(--text-muted); transition: transform 0.2s; font-size: 1rem; line-height: 1; }
+.future-month[open] .future-chev { transform: rotate(180deg); }
+.future-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.future-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+}
+.future-item.is-paid { opacity: 0.55; }
+.future-order {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.future-item-main { flex: 1; min-width: 0; }
+.future-item-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.future-due {
+  margin-left: 0.3rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 159, 10, 0.12);
+  color: var(--warn);
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.future-item-sub { margin-top: 0.1rem; font-size: 0.7rem; color: var(--text-muted); }
+.future-item-value { flex-shrink: 0; font-size: 0.84rem; font-weight: 700; color: var(--expense); font-variant-numeric: tabular-nums; }
+.future-pay { background: rgba(255, 159, 10, 0.15); color: var(--warn); border-color: rgba(255, 159, 10, 0.32); }
+.future-paid { background: rgba(34, 197, 94, 0.12); color: var(--income); border-color: rgba(34, 197, 94, 0.3); }
+
 .invoice-month-items { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem; }
 
 .invoice-item {
@@ -1372,6 +1523,7 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   }
   .dash-header { flex-direction: column; }
   .dash-tools { width: 100%; }
+  input, select, textarea { font-size: 16px !important; }
   .category-grid { grid-template-columns: repeat(2, 1fr); }
   .charts-grid { grid-template-columns: 1fr; }
   #dashboard, #commands, #cards, #bills, #debts { padding: 1rem; }
@@ -1414,6 +1566,14 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
     width: 100% !important;
     height: 44px !important;
   }
+}
+
+@media (max-width: 560px) {
+  .future-month-meta { display: none; }
+  .future-current-total { margin-left: 0; width: 100%; }
+  .future-item { gap: 0.45rem; padding: 0.5rem; }
+  .future-item-value { font-size: 0.8rem; }
+  .future-pay, .future-paid { width: auto; padding: 0 0.55rem; height: 32px; }
 }
 
 @media (max-width: 480px) {
