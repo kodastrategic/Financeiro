@@ -114,7 +114,8 @@ function addMonths(key,n){
 }
 function getFixDueDate(exp,monthKey){
   const [y,m]=monthKey.split('-').map(Number);
-  const day=exp.dueDay||1;
+  const day=Number(exp.dueDay);
+  if(!Number.isInteger(day)||day<1||day>31)return null;
   const lastDay=new Date(y,m,0).getDate();
   return `${monthKey}-${String(Math.min(day,lastDay)).padStart(2,'0')}`;
 }
@@ -129,7 +130,7 @@ function getUnpaidCompetencias(exp,paysSet,curKey,fromKey){
   while(key<=curKey&&k<360&&(!end||key<=end)){
     if(!paysSet.has(exp.id+':'+key)){
       const dueDate=getFixDueDate(exp,key);
-      if(dueDate<today)out.push({monthKey:key,dueDate});
+      if(dueDate&&dueDate<today)out.push({monthKey:key,dueDate});
     }
     key=addMonths(key,1);
     k++;

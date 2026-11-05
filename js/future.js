@@ -90,8 +90,8 @@ function futureMonthHTML(data,key,filter){
 function futureItemHTML(i,paidFixed){
   const paid=paidFixed.has(i.id+':'+i.monthKey);
   const dueDate=getFixDueDate(i,i.monthKey);
-  const overdue=!paid&&dueDate<todayLocal();
-  const due=i.dueDay?`dia ${parseInt(dueDate.slice(-2),10)}`:'sem dia';
+  const overdue=!paid&&!!dueDate&&dueDate<todayLocal();
+  const due=dueDate?`dia ${parseInt(dueDate.slice(-2),10)}`:'sem dia';
   const status=paid?'Paga':overdue?'Em atraso':'Pendente';
   const action=paid
     ? `<button class="btn-sm future-paid" onclick="toggleFutureFixed(${i.id},'${i.monthKey}')">Paga</button>`
