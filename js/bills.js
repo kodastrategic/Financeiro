@@ -173,6 +173,17 @@ async function payOverdueFixed(expenseId,monthKey){
   const extra=amount>exp.amount?` · juros/multa: ${formatCurrency(amount-exp.amount)}`:'';
   showNotification(`✅ "${exp.name}" pago: ${formatCurrency(amount)}${extra}`);
 }
+async function resolveOverdueFixedWithoutTransaction(expenseId,monthKey){
+  const exp=await db.fixedexpenses.get(expenseId);
+  if(!exp)return;
+  const existing=await db.fixedpayments.where({expenseId,monthKey}).first();
+  if(existing)return;
+  if(!confirm(`Dar baixa em "${exp.name}" (${monthKey.replace('-','/')}) sem criar uma despesa?\n\nUse para contas pagas fora do app ou perdoadas. A conta sairá da lista de atrasos, mas não será adicionada ao histórico financeiro.`))return;
+  await db.fixedpayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
+  await openFixedModal(fixedModalMonth||currentMonthKey());
+  await refreshDashboard();await renderChatHistory();scrollChatToTop();scheduleBackup();
+  showNotification(`"${exp.name}" baixada sem lançamento financeiro.`);
+}
 
 async function openFixedModal(monthKey){
   const now=new Date();
@@ -186,37 +197,39 @@ async function openFixedModal(monthKey){
 
   const exps=await db.fixedexpenses.toArray();
   const active=exps.filter(e=>fixedAppliesMonth(e,monthKey));
-  if(!active.length){
-    renderFixedNav(monthKey);
-    $('#fixedModalInfo').innerHTML='<span style="color:var(--text-muted);font-size:0.82rem">Nenhuma conta fixa neste mês.</span>';
-    $('#fixedModalBody').innerHTML='<p class="empty-state">Não há contas fixas ativas com competência neste mês.</p>';
-    $('#fixedModal').classList.add('show');return;
-  }
-
   const payments=await db.fixedpayments.where('monthKey').equals(monthKey).toArray();
   const paidIds=new Set(payments.map(p=>p.expenseId));
   const total=active.reduce((s,e)=>s+e.amount,0);
   const paidTotal=active.filter(e=>paidIds.has(e.id)).reduce((s,e)=>s+e.amount,0);
-  const allPaid=active.every(e=>paidIds.has(e.id));
+  const paidCount=active.filter(e=>paidIds.has(e.id)).length;
+  const allPaid=active.length>0&&active.every(e=>paidIds.has(e.id));
 
   renderFixedNav(monthKey);
-  $('#fixedModalInfo').innerHTML=`<span style="font-size:0.82rem;color:var(--text-secondary)">Pago: ${formatCurrency(paidTotal)} de ${formatCurrency(total)} · ${paidIds.size}/${active.length} conta${active.length>1?'s':''}</span>`;
+  $('#fixedModalInfo').innerHTML=active.length
+    ? `<span style="font-size:0.82rem;color:var(--text-secondary)">Pago: ${formatCurrency(paidTotal)} de ${formatCurrency(total)} · ${paidCount}/${active.length} conta${active.length>1?'s':''}</span>`
+    : '<span style="color:var(--text-muted);font-size:0.82rem">Nenhuma conta fixa neste mês.</span>';
 
   let html='';
   for(const e of active){
     const paid=paidIds.has(e.id);
-    html+=`<div class="invoice-month ${paid?'paid':''}">
+    const dueDate=getFixDueDate(e,monthKey);
+    const overdue=!paid&&!!dueDate&&dueDate<todayLocal();
+    const dueLabel=dueDate?`${overdue?'Vencida em':'Vencimento'} ${formatDate(dueDate)}`:'Sem vencimento';
+    html+=`<div class="invoice-month${paid?' paid':''}${overdue?' is-overdue':''}">
       <div class="invoice-month-header">
         <span class="invoice-month-label">${escapeHtml(e.name)}</span>
         <span class="invoice-month-total">${formatCurrency(e.amount)}</span>
       </div>
-      <div class="invoice-month-footer">
-        <span style="font-size:0.82rem;color:var(--text-secondary)">${e.dueDay?'Vencimento dia '+e.dueDay:'Sem vencimento'} · ${escapeHtml(e.category)}</span>
-        <button class="btn-sm ${paid?'danger':'primary'}" onclick="toggleFixedExpense(${e.id},'${monthKey}')">${paid?'✕ Desmarcar':'✅ Pagar'}</button>
+      <div class="invoice-month-footer fixed-account-footer">
+        <span class="fixed-account-due${overdue?' is-overdue':''}">${dueLabel} · ${escapeHtml(e.category)}</span>
+        <div class="fixed-account-actions">
+          <button class="btn-sm ${paid?'danger':'primary'}" onclick="toggleFixedExpense(${e.id},'${monthKey}')">${paid?'✕ Desmarcar':'✅ Pagar'}</button>
+          ${overdue?`<button class="btn-sm fixed-forget" title="Dar baixa sem criar lançamento" onclick="resolveOverdueFixedWithoutTransaction(${e.id},'${monthKey}')">Esquecer</button>`:''}
+        </div>
       </div>
     </div>`;
   }
-  html+=`<div style="margin-top:1rem;text-align:center">
+  if(active.length)html+=`<div style="margin-top:1rem;text-align:center">
     <button class="btn-${allPaid?'secondary':'primary'}" onclick="toggleAllFixed('${monthKey}')" style="width:100%">${allPaid?'Desmarcar Todas do Mês':'Pagar Todas do Mês'}</button>
   </div>`;
 
@@ -232,22 +245,26 @@ async function openFixedModal(monthKey){
       overdue.push({exp:e,...u});
     }
   }
-  overdue.sort((a,b)=>b.monthKey.localeCompare(a.monthKey)||b.dueDate.localeCompare(a.dueDate));
+  overdue.sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||String(a.exp.name).localeCompare(String(b.exp.name)));
   if(overdue.length){
     html+=`<div class="fixed-overdue-sec">
-      <h4 class="fixed-overdue-title">⚠️ Em atraso (competências anteriores)</h4>
-      ${overdue.map(o=>`<div class="invoice-month" style="border-color:rgba(245,158,11,0.3)">
+      <h4 class="fixed-overdue-title">⚠️ Em atraso · mais antiga primeiro</h4>
+      ${overdue.map(o=>`<div class="invoice-month is-overdue">
         <div class="invoice-month-header">
           <span class="invoice-month-label">${escapeHtml(o.exp.name)} <span style="opacity:0.6;font-size:0.72rem">· competência ${formatMonthLabel(o.monthKey)}</span></span>
           <span class="invoice-month-total" style="color:var(--expense)">${formatCurrency(o.exp.amount)}</span>
         </div>
-        <div class="invoice-month-footer">
-          <span style="font-size:0.82rem;color:var(--text-secondary)">Venc. ${formatDate(o.dueDate)} · ${escapeHtml(o.exp.category)}</span>
-          <button class="btn-sm" style="background:rgba(245,158,11,0.15);color:#fbbf24;border-color:rgba(245,158,11,0.35)" onclick="payOverdueFixed(${o.exp.id},'${o.monthKey}')">💸 Pagar (valor real)</button>
+        <div class="invoice-month-footer fixed-account-footer">
+          <span class="fixed-account-due is-overdue">Vencida em ${formatDate(o.dueDate)} · ${escapeHtml(o.exp.category)}</span>
+          <div class="fixed-account-actions">
+            <button class="btn-sm fixed-overdue-pay" onclick="payOverdueFixed(${o.exp.id},'${o.monthKey}')">💸 Pagar (valor real)</button>
+            <button class="btn-sm fixed-forget" title="Dar baixa sem criar lançamento" onclick="resolveOverdueFixedWithoutTransaction(${o.exp.id},'${o.monthKey}')">Esquecer</button>
+          </div>
         </div>
       </div>`).join('')}
     </div>`;
   }
+  if(!active.length&&!overdue.length)html='<p class="empty-state">Não há contas fixas ativas com competência neste mês.</p>';
 
   $('#fixedModalBody').innerHTML=html;
   $('#fixedModal').classList.add('show');

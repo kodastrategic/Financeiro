@@ -1115,17 +1115,17 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
 
 /* ===== FIXED EXPENSES months ===== */
 .fixed-overdue-sec {
-  border: 1px solid rgba(255, 159, 10, 0.36);
+  border: 1px solid rgba(255, 69, 58, 0.32);
   border-radius: var(--radius);
   padding: 0.7rem;
   margin-top: 1rem;
-  background: linear-gradient(145deg, rgba(255, 159, 10, 0.1), rgba(255, 159, 10, 0.02));
+  background: linear-gradient(145deg, rgba(255, 69, 58, 0.09), rgba(255, 69, 58, 0.02));
 }
 .fixed-overdue-title {
   margin: 0 0 0.7rem;
   font-size: 0.84rem;
   font-weight: 700;
-  color: var(--warn);
+  color: var(--expense);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -1142,6 +1142,7 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
 }
 .invoice-month:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
 .invoice-month.paid { opacity: 0.6; }
+.invoice-month.is-overdue { border-color: rgba(255, 69, 58, 0.36); }
 
 .invoice-month-header {
   display: flex;
@@ -1290,6 +1291,14 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   padding-top: 0.55rem;
   border-top: 1px solid var(--border);
 }
+.fixed-account-footer { align-items: center; }
+.fixed-account-due { flex: 1; min-width: 140px; font-size: 0.82rem; color: var(--text-secondary); }
+.fixed-account-due.is-overdue { color: var(--expense); font-weight: 700; }
+.fixed-account-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
+.fixed-account-actions .btn-sm { white-space: nowrap; min-height: 36px; }
+.fixed-overdue-pay { background: rgba(255, 69, 58, 0.14); color: var(--expense); border-color: rgba(255, 69, 58, 0.34); }
+.fixed-forget { background: rgba(255, 255, 255, 0.06); color: var(--text-secondary); border-color: var(--border-strong); }
+.fixed-forget:hover { background: rgba(255, 255, 255, 0.12); color: var(--text-primary); }
 
 .invoice-status { font-size: 0.82rem; font-weight: 600; }
 .invoice-status.paid { color: var(--income); }
@@ -1612,6 +1621,9 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   .future-item { gap: 0.45rem; padding: 0.5rem; }
   .future-item-value { font-size: 0.8rem; }
   .future-pay, .future-paid { width: auto; padding: 0 0.55rem; height: 32px; }
+  .fixed-account-footer { align-items: flex-start; flex-direction: column; }
+  .fixed-account-actions { width: 100%; justify-content: flex-start; }
+  .fixed-account-actions .btn-sm { flex: 1; }
 }
 
 @media (max-width: 480px) {
