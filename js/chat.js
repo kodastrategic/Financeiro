@@ -149,7 +149,8 @@ async function executeCommand(keyword,amount,rawText,cmdDate){
   const tx={type:cmd.type,category:cmd.category,description:rawText,amount,date:cmdDate||todayLocal(),command:keyword,createdAt:new Date().toISOString()};
   try{tx.id=await db.transactions.add(tx);}catch(e){console.error('add tx error',e);return{success:false,message:`Erro ao salvar: ${e.message}`};}
   await refreshDashboard();scheduleBackup();
-  const all=await db.transactions.toArray();const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  const all=await db.transactions.toArray();
+  const balance=calculateTransactionBalances(all).byId.get(String(tx.id))??0;
   return{success:true,tx,balance};
 }
 async function deleteTransaction(id){
@@ -195,18 +196,26 @@ function setupEditTxForm(){
 
 
 async function renderChatHistory(){
-  const all=await db.transactions.orderBy('date').toArray();
+  const all=await db.transactions.toArray();
   const c=$('#chatMessages');c.innerHTML=`<div class="msg-system"><span>💡 Digite <strong>/entrada 500</strong> ou <strong>/saida 120</strong></span></div>`;
-  let balance=0,balMap={};
-  for(const t of all){balance+=t.type==='income'?t.amount:-t.amount;balMap[t.date]=balance;}
-  const sorted=[...all].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const {sorted,byId}=calculateTransactionBalances(all);
   for(const t of sorted){
-    addChatMessage(transactionCardHTML(t,balMap[t.date]),'msg-tx '+t.type);
+    addChatMessage(transactionCardHTML(t,byId.get(String(t.id))??0),'msg-tx '+t.type);
   }
   await renderChatBanner();
   scrollChatToTop();
 }
 function addChatMessage(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;$('#chatMessages').prepend(d);}
+function calculateTransactionBalances(transactions){
+  const sorted=[...transactions].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||Number(a.id)-Number(b.id));
+  const byId=new Map();
+  let balance=0;
+  for(const tx of sorted){
+    balance+=tx.type==='income'?Number(tx.amount):-Number(tx.amount);
+    byId.set(String(tx.id),balance);
+  }
+  return {sorted,byId};
+}
 function transactionCardHTML(tx,balance,txId=tx.id){
   const isIncome=tx.type==='income',id=Number(txId);
   const description=tx.description||tx.command||'';

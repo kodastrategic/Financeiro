@@ -120,11 +120,11 @@ function setupCreateCmdForm(){
       await loadCommandsTable();
       // Executa transação
       const tx={type,category,description:`/${keyword} ${amount}`,amount,date,command:keyword,createdAt:new Date().toISOString()};
-      const txId=await db.transactions.add(tx);
-      closeModal('createCmdModal');
-      await refreshDashboard();scheduleBackup();
-      const all=await db.transactions.toArray();
-      const balance=all.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+       const txId=await db.transactions.add(tx);
+       closeModal('createCmdModal');
+       await refreshDashboard();scheduleBackup();
+       const all=await db.transactions.toArray();
+       const balance=calculateTransactionBalances(all).byId.get(String(txId))??0;
        addChatMessage(transactionCardHTML(tx,balance,txId),'msg-tx '+type);
       renderChatBanner();
       showNotification(`/${keyword} criado e executado!`);
