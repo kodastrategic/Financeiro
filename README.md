@@ -103,7 +103,7 @@ finance-app/
   - `💰 Receitas do Mês` → `openTypeModal('income')` — total por categoria (grid) + lista de lançamentos com filtros (período, categoria, busca)
   - `📉 Despesas do Mês` → `openTypeModal('expense')` — idem
   - `💳 Dívidas` → abre a aba Dívidas (`openTab('debts')`)
-  - `📈 Saldo Projetado`, `📄 Contas Fixas`, `📅 Compromissos Futuros`, `⚠️ Em Atraso` já abriam modais
+  - `📄 Contas Fixas`, `📅 Compromissos Futuros`, `⚠️ Em Atraso` já abriam modais
 - Modal `#typeModal` (seção "DASHBOARD V2" em `js/dashboard.js`): cluster de categorias com % e mini-barra (clique aprofunda no modal da categoria) + tabela detalhada com editar/excluir
 - Navegação por abas via `openTab()` em `js/main.js`; busca global `#dashSearch` movida para dentro do modal (cada tipo tem sua busca)
 - Modal de categoria re-renderiza após refresh se estiver aberto (idem para `#typeModal`)
@@ -133,7 +133,7 @@ finance-app/
 
 ### Componentes
 - **Nav**: barra fixa com blur (`rgba(10,13,18,.82)`), brand com tile em gradiente, abas em **pill** com gradiente ativo e sombra glow
-- **Cards de resumo**: hover com lift + sombra; cada variante tem um glow radial próprio (`.card-saldo`/`.card-projetado`/`.card-dividas`/`.card-receita-mes`), valor principal em gradiente de texto
+- **Cards de resumo**: hover com lift + sombra; variantes `.card-saldo`, `.card-dividas` e `.card-receita-mes`, valor principal em gradiente de texto
 - **Gráficos**: containers vidro com hover glow; h3 com acento; legenda em chips pills
 - **Botões**: `.btn-primary` gradiente + glow; `.btn-secondary` outline; `.btn-danger` soft; `.btn-sm` ghost com variantes `.primary`/`.danger`; `.filter-btn` pill
 - **Forms**: inputs com focus ring (`box-shadow` 4px accent), `select` com chevron SVG customizado, `color` swatch arredondado
@@ -175,7 +175,7 @@ finance-app/
 ### Dashboard
 - Card **"Parcelas Futuras"** → **"📅 Compromissos Futuros"** (mesmo id `dFutureInstallments`) — soma dos próximos 12 meses de contas fixas (respeitando início/término)
 - Removidos gráficos **Compromissos Futuros** (`chartFutureCommitments`) e **Endividamento** (`chartIndebtedness`) e o card **"Crédito Usado"** (`dCreditUsed`)
-- Modais `#typeModal`, `#categoryModal`, `#projectedModal` e `#futureInstallmentsModal` agora usam **somente** transações e contas fixas (sem parcelas/recorrentes); modais de tipo/categoria sem coluna Cartão e sem ações de parcela
+- Modais `#typeModal`, `#categoryModal` e `#futureInstallmentsModal` agora usam **somente** transações e contas fixas (sem parcelas/recorrentes); modais de tipo/categoria sem coluna Cartão e sem ações de parcela
 
 ### Testes
 - `node --check` em todos os `js/*.js`

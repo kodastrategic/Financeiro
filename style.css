@@ -594,7 +594,7 @@ nav {
 /* Summary cards */
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.85rem;
   margin-bottom: 0.9rem;
 }
@@ -637,7 +637,6 @@ nav {
 }
 
 .card-saldo .card-value { color: var(--income); }
-.card-projetado .card-value { color: var(--accent); }
 .card-dividas .card-value { color: var(--expense); }
 .card-receita-mes .card-value { color: #5e5ce6; }
 
@@ -1311,8 +1310,8 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
 .modal-wide { max-width: 860px; }
 
 /* ===== PROJECTED / DETAIL TABLES ===== */
-.projected-table, .detail-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-.projected-table th, .detail-table th {
+.detail-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+.detail-table th {
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.7rem;
@@ -1321,17 +1320,15 @@ td code { color: var(--accent-hover); font-size: 0.85rem; background: var(--acce
   text-align: left;
   border-bottom: 1px solid var(--border-strong);
 }
-.projected-table td, .detail-table td {
+.detail-table td {
   color: var(--text-secondary);
   font-size: 0.82rem;
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid var(--border);
 }
-.projected-table tr:hover td, .detail-table tr:hover td { background: rgba(255, 255, 255, 0.025); }
-.projected-table td:last-child, .detail-table td:last-child { text-align: right; }
+.detail-table tr:hover td { background: rgba(255, 255, 255, 0.025); }
+.detail-table td:last-child { text-align: right; }
 .detail-table .card-name { color: var(--accent-hover); font-size: 0.74rem; font-weight: 600; }
-.projected-positive { color: var(--income) !important; font-weight: 700; }
-.projected-negative { color: var(--expense) !important; font-weight: 700; }
 
 /* ===== CATEGORY GRID / CARDS ===== */
 .category-grid {

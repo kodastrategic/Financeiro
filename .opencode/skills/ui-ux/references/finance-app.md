@@ -7,7 +7,7 @@
 - Deploy estático na Vercel.
 
 ## Contratos que NÃO podem quebrar
-- IDs/classes consumidos por `js/*.js` (ex.: `dBalance`, `dProjected`,
+- IDs/classes consumidos por `js/*.js` (ex.: `dBalance`,
   `dMonthIncome`, `dMonthExpense`, `dFutureInstallments`, `dTotalDebt`,
   `dOverdueDebt`, `dFixedExpenses`, `budgetAlerts`, `chatInput`, `chatSend`,
   `chatMessages`, `autocompleteBox`, `fixedBody`, `debtsBody`, `commandsBody`,
@@ -20,7 +20,7 @@
 
 ## Estrutura de telas
 - **Chat**: histórico + composer fixo + banner de saldo/comprometido.
-- **Dashboard**: 8 cards (4 principais + 4 sutis), alertas de orçamento,
+- **Dashboard**: 7 cards (3 principais + 4 sutis), alertas de orçamento,
   11 gráficos.
 - **Comandos**: 3 painéis (comandos, categorias, orçamentos).
 - **Contas**: formulário + tabela de contas fixas; modal do mês.

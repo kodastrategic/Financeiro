@@ -77,12 +77,9 @@ async function renderSummaryCards(tx,debts){
   const futureFixed=await getFutureMonthly();
   const futureFixedTotal=futureFixed.reduce((s,v)=>s+v,0);
   const totalDebt=debts.filter(d=>d.currentAmount>0).reduce((s,d)=>s+d.currentAmount,0);
-  const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
-  const projected=balance+avgIncome-avgExpense-(futureFixed[0]||0);
   const allFixed=await db.fixedexpenses.toArray();
   const overdueDebt=await getOverdueFixedTotal(allFixed);
   $('#dBalance').textContent=formatCurrency(balance);
-  $('#dProjected').textContent=formatCurrency(projected);
   $('#dMonthIncome').textContent=formatCurrency(monthIncome);
   $('#dMonthExpense').textContent=formatCurrency(monthExpense);
   $('#dFutureInstallments').textContent=formatCurrency(futureFixedTotal);
@@ -353,35 +350,6 @@ function setupChartGlow(){
       el.style.setProperty('--glow-y',((e.clientY-r.top)/r.height)*100+'%');
     });
   });
-}
-
-// ===== MODAL PROJECTED =====
-async function openProjectedModal(){
-  const tx=await db.transactions.toArray();
-  const base=dashboardFilter==='all'?tx:tx.filter(t=>t.date.slice(0,7)<=dashboardFilter);
-  const income=base.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense=base.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const balance=income-expense;
-  const avgIncome=getAvgMonthly(tx,'income',3),avgExpense=getAvgMonthly(tx,'expense',3);
-  const monthly=await getFutureMonthly();
-  const now=new Date();
-  let html='<table class="projected-table"><thead><tr><th>Mês</th><th>Saldo Inicial</th><th>Receita Média</th><th>Despesa Média</th><th>Compromissos</th><th>Saldo Final</th></tr></thead><tbody>';
-  let saldo=balance;
-  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  for(let i=1;i<=12;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
-    const label=`${meses[d.getMonth()]}/${d.getFullYear()}`;
-    const comp=monthly[i-1]||0;
-    const final=saldo+avgIncome-avgExpense-comp;
-    const cls=final>=0?'projected-positive':'projected-negative';
-    html+=`<tr><td>${label}</td><td>${formatCurrency(saldo)}</td><td>${formatCurrency(avgIncome)}</td><td>${formatCurrency(avgExpense)}</td><td>${formatCurrency(comp)}</td><td class="${cls}">${formatCurrency(final)}</td></tr>`;
-    saldo=final;
-  }
-  html+='</tbody></table>';
-  const info=`Saldo Atual: ${formatCurrency(balance)} | Média Receitas (3m): ${formatCurrency(avgIncome)} | Média Despesas (3m): ${formatCurrency(avgExpense)}`;
-  $('#projectedInfo').textContent=info;
-  $('#projectedBody').innerHTML=html;
-  $('#projectedModal').classList.add('show');
 }
 
 // ===== MODAL FUTURE COMMITMENTS =====

@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=20261105-3">
+  <link rel="stylesheet" href="style.css?v=20261106-1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -72,7 +72,6 @@
 </div>
 <div class="summary" id="dashboardSummary">
 <div class="card card-saldo"><span class="card-label">💰 Saldo Atual</span><span class="card-value" id="dBalance">R$ 0</span></div>
-<div class="card card-projetado" onclick="openProjectedModal()" style="cursor:pointer"><span class="card-label">📈 Saldo Projetado</span><span class="card-value" id="dProjected">R$ 0</span></div>
 <div class="card card-dividas" onclick="openTab('debts')" style="cursor:pointer"><span class="card-label">💳 Dívidas</span><span class="card-value" id="dTotalDebt">R$ 0</span></div>
 <div class="card card-receita-mes" onclick="openTypeModal('income')" style="cursor:pointer"><span class="card-label">💰 Receitas do Mês</span><span class="card-value" id="dMonthIncome">R$ 0</span></div>
 </div>
@@ -196,17 +195,6 @@
 </div>
 </section>
 
-<div class="modal-overlay" id="projectedModal" onclick="if(event.target===this)closeModal('projectedModal')">
-    <div class="modal modal-wide">
-      <div class="modal-header">
-        <h2>📈 Projeção de Saldo — Próximos 12 Meses</h2>
-        <button class="btn-sm" onclick="closeModal('projectedModal')">✕</button>
-      </div>
-      <div class="modal-subheader" id="projectedInfo"></div>
-      <div class="modal-body" id="projectedBody"></div>
-    </div>
-  </div>
-
 <div class="modal-overlay" id="futureInstallmentsModal" onclick="if(event.target===this)closeModal('futureInstallmentsModal')">
     <div class="modal modal-wide">
       <div class="modal-header">
@@ -329,16 +317,16 @@
   </div>
 
   <script src="supabase-config.js"></script>
-  <script src="js/db.js?v=20261105-3"></script>
-  <script src="js/globals.js?v=20261105-3"></script>
-  <script src="js/utils.js?v=20261105-3"></script>
-  <script src="js/chat.js?v=20261105-3"></script>
-  <script src="js/dashboard.js?v=20261105-3"></script>
-  <script src="js/future.js?v=20261105-3"></script>
-  <script src="js/commands.js?v=20261105-3"></script>
-  <script src="js/debts.js?v=20261105-3"></script>
-  <script src="js/bills.js?v=20261105-3"></script>
-  <script src="js/data.js?v=20261105-3"></script>
-  <script src="js/main.js?v=20261105-3"></script>
+  <script src="js/db.js?v=20261106-1"></script>
+  <script src="js/globals.js?v=20261106-1"></script>
+  <script src="js/utils.js?v=20261106-1"></script>
+  <script src="js/chat.js?v=20261106-1"></script>
+  <script src="js/dashboard.js?v=20261106-1"></script>
+  <script src="js/future.js?v=20261106-1"></script>
+  <script src="js/commands.js?v=20261106-1"></script>
+  <script src="js/debts.js?v=20261106-1"></script>
+  <script src="js/bills.js?v=20261106-1"></script>
+  <script src="js/data.js?v=20261106-1"></script>
+  <script src="js/main.js?v=20261106-1"></script>
 </body>
 </html>
