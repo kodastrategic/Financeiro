@@ -190,9 +190,10 @@ nav {
 
 .nav-tabs {
   display: flex; gap: 0.2rem; align-items: center;
-  background: rgba(118, 118, 128, 0.24);
-  padding: 0.24rem;
-  border-radius: var(--radius-pill);
+  background: rgba(118, 118, 128, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.28rem;
+  border-radius: 12px;
 }
 
 .tab-btn {
@@ -201,7 +202,7 @@ nav {
   color: var(--text-secondary);
   border: none;
   padding: 0.55rem 1rem;
-  border-radius: var(--radius-pill);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -290,13 +291,20 @@ nav {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   cursor: default;
 }
-.msg-tx.income { border-left: 3px solid var(--income); }
-.msg-tx.expense { border-left: 3px solid var(--expense); }
+.msg-tx.income {
+  background: linear-gradient(112deg, rgba(48, 209, 88, 0.16), rgba(48, 209, 88, 0.08) 58%, rgba(48, 209, 88, 0.045)), var(--bg-card-gradient);
+  border-color: rgba(48, 209, 88, 0.2);
+}
+.msg-tx.expense {
+  background: linear-gradient(112deg, rgba(255, 69, 58, 0.16), rgba(255, 69, 58, 0.08) 58%, rgba(255, 69, 58, 0.045)), var(--bg-card-gradient);
+  border-color: rgba(255, 69, 58, 0.2);
+}
 .msg-tx:hover {
-  border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
+.msg-tx.income:hover { border-color: rgba(48, 209, 88, 0.34); }
+.msg-tx.expense:hover { border-color: rgba(255, 69, 58, 0.34); }
 .msg-tx-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, auto) auto;
