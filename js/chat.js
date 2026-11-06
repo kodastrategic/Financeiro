@@ -241,7 +241,7 @@ async function renderChatBanner(){
           <svg class="banner-commitment-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </span>
       </button>`:'';
-    const overdueCard=overdueItems.length?`<button type="button" class="banner-overdue" onclick="openFixedModal('${cur}')" aria-label="Ver ${overdueItems.length} ${overdueItems.length===1?'conta atrasada':'contas atrasadas'}, total ${formatCurrency(overdueTotal)}">
+    const overdueCard=overdueItems.length?`<button type="button" class="banner-overdue" onclick="openOverdueFixedModal()" aria-label="Ver ${overdueItems.length} ${overdueItems.length===1?'conta atrasada':'contas atrasadas'}, total ${formatCurrency(overdueTotal)}">
         <span class="banner-overdue-icon" aria-hidden="true">!</span>
         <span class="banner-overdue-copy">
           <strong>${overdueItems.length} conta${overdueItems.length===1?'':'s'} em atraso</strong>

@@ -97,7 +97,7 @@ async function deleteFixed(id){
 }
 
 // ===== MODAL FIXED =====
-let fixedModalMonth=null;
+let fixedModalMonth=null, fixedModalOverdueOnly=false;
 
 // --- Modelo de atraso: competência x vencimento ---
 // A conta pertence sempre ao mês de competência (não muda de mês).
@@ -168,7 +168,7 @@ async function payOverdueFixed(expenseId,monthKey){
   await db.fixedpayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
   const tx={type:'expense',category:exp.category||'Contas Fixas',description:`[Atraso] ${exp.name} (${monthKey.replace('-','/')})`,amount,date:todayLocal(),command:'contafixa',fixedExpenseId:expenseId,fixedMonthKey:monthKey,createdAt:new Date().toISOString()};
   await db.transactions.add(tx);
-  await openFixedModal(fixedModalMonth||currentMonthKey());
+  await refreshFixedModal();
   await refreshDashboard();await renderChatHistory();scrollChatToTop();scheduleBackup();
   const extra=amount>exp.amount?` · juros/multa: ${formatCurrency(amount-exp.amount)}`:'';
   showNotification(`✅ "${exp.name}" pago: ${formatCurrency(amount)}${extra}`);
@@ -180,12 +180,13 @@ async function resolveOverdueFixedWithoutTransaction(expenseId,monthKey){
   if(existing)return;
   if(!confirm(`Dar baixa em "${exp.name}" (${monthKey.replace('-','/')}) sem criar uma despesa?\n\nUse para contas pagas fora do app ou perdoadas. A conta sairá da lista de atrasos, mas não será adicionada ao histórico financeiro.`))return;
   await db.fixedpayments.add({expenseId,monthKey,createdAt:new Date().toISOString()});
-  await openFixedModal(fixedModalMonth||currentMonthKey());
+  await refreshFixedModal();
   await refreshDashboard();await renderChatHistory();scrollChatToTop();scheduleBackup();
   showNotification(`"${exp.name}" baixada sem lançamento financeiro.`);
 }
 
 async function openFixedModal(monthKey){
+  fixedModalOverdueOnly=false;
   const now=new Date();
   if(!monthKey)monthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   fixedModalMonth=monthKey;
@@ -245,29 +246,58 @@ async function openFixedModal(monthKey){
       overdue.push({exp:e,...u});
     }
   }
-  overdue.sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||String(a.exp.name).localeCompare(String(b.exp.name)));
+  sortOverdueFixedItems(overdue);
   if(overdue.length){
     html+=`<div class="fixed-overdue-sec">
       <h4 class="fixed-overdue-title">⚠️ Em atraso · mais antiga primeiro</h4>
-      ${overdue.map(o=>`<div class="invoice-month is-overdue">
-        <div class="invoice-month-header">
-          <span class="invoice-month-label">${escapeHtml(o.exp.name)} <span style="opacity:0.6;font-size:0.72rem">· competência ${formatMonthLabel(o.monthKey)}</span></span>
-          <span class="invoice-month-total" style="color:var(--expense)">${formatCurrency(o.exp.amount)}</span>
-        </div>
-        <div class="invoice-month-footer fixed-account-footer">
-          <span class="fixed-account-due is-overdue">Vencida em ${formatDate(o.dueDate)} · ${escapeHtml(o.exp.category)}</span>
-          <div class="fixed-account-actions">
-            <button class="btn-sm fixed-overdue-pay" onclick="payOverdueFixed(${o.exp.id},'${o.monthKey}')">💸 Pagar (valor real)</button>
-            <button class="btn-sm fixed-forget" title="Dar baixa sem criar lançamento" onclick="resolveOverdueFixedWithoutTransaction(${o.exp.id},'${o.monthKey}')">Esquecer</button>
-          </div>
-        </div>
-      </div>`).join('')}
+      ${overdue.map(overdueFixedItemHTML).join('')}
     </div>`;
   }
   if(!active.length&&!overdue.length)html='<p class="empty-state">Não há contas fixas ativas com competência neste mês.</p>';
 
   $('#fixedModalBody').innerHTML=html;
   $('#fixedModal').classList.add('show');
+}
+async function openOverdueFixedModal(){
+  const month=currentMonthKey();
+  fixedModalMonth=month;
+  fixedModalOverdueOnly=true;
+  const [exps,payments]=await Promise.all([db.fixedexpenses.toArray(),db.fixedpayments.toArray()]);
+  const paysSet=new Set(payments.map(p=>p.expenseId+':'+p.monthKey));
+  const overdue=await getOverdueFixedItems(exps,paysSet,month);
+  sortOverdueFixedItems(overdue);
+  const total=overdue.reduce((sum,item)=>sum+item.exp.amount,0);
+
+  $('#fixedModalMonth').textContent='Atrasadas';
+  $('#fixedModalInfo').innerHTML=overdue.length
+    ? `<span style="font-size:0.82rem;color:var(--text-secondary)">${overdue.length} conta${overdue.length===1?'':'s'} em atraso · Total: <strong style="color:var(--expense)">${formatCurrency(total)}</strong></span>`
+    : '<span style="font-size:0.82rem;color:var(--income)">Nenhuma conta está atrasada.</span>';
+  $('#fixedModalBody').innerHTML=overdue.length
+    ? `<div class="fixed-overdue-sec"><h4 class="fixed-overdue-title">⚠️ Todos os meses · mais antiga primeiro</h4>${overdue.map(overdueFixedItemHTML).join('')}</div>`
+    : '<p class="empty-state">Nenhuma conta vencida e não paga.</p>';
+  $('#fixedModal').classList.add('show');
+}
+function sortOverdueFixedItems(items){
+  return items.sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||String(a.exp.name).localeCompare(String(b.exp.name)));
+}
+function overdueFixedItemHTML(o){
+  return `<div class="invoice-month is-overdue">
+    <div class="invoice-month-header">
+      <span class="invoice-month-label">${escapeHtml(o.exp.name)} <span style="opacity:0.6;font-size:0.72rem">· competência ${formatMonthLabel(o.monthKey)}</span></span>
+      <span class="invoice-month-total" style="color:var(--expense)">${formatCurrency(o.exp.amount)}</span>
+    </div>
+    <div class="invoice-month-footer fixed-account-footer">
+      <span class="fixed-account-due is-overdue">Vencida em ${formatDate(o.dueDate)} · ${escapeHtml(o.exp.category)}</span>
+      <div class="fixed-account-actions">
+        <button class="btn-sm fixed-overdue-pay" onclick="payOverdueFixed(${o.exp.id},'${o.monthKey}')">💸 Pagar (valor real)</button>
+        <button class="btn-sm fixed-forget" title="Dar baixa sem criar lançamento" onclick="resolveOverdueFixedWithoutTransaction(${o.exp.id},'${o.monthKey}')">Esquecer</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function refreshFixedModal(){
+  if(fixedModalOverdueOnly)return openOverdueFixedModal();
+  return openFixedModal(fixedModalMonth||currentMonthKey());
 }
 function renderFixedNav(monthKey){
   const [y,m]=monthKey.split('-').map(Number);
