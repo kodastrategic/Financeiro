@@ -35,7 +35,6 @@
 - Estética contida: sem glow excessivo, sem gradientes chamativos.
 
 ## Oportunidades conhecidas
-- Chat com coluna estreita e muito vazio à direita.
 - Emojis estruturais com renderização inconsistente no Windows.
 - Painéis de Comandos espremidos; coluna de orçamentos cortada.
 - Contas/Dívidas em uma única coluna larga e vazia.

@@ -90,7 +90,7 @@ async function processCommand(text){
     return;
   }
   const{tx,balance}=result;
-  addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem"><div><div class="msg-tx-header"><span>${tx.type==='income'?'📈':'📉'} <strong>${tx.type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${tx.category}</span></div><div class="msg-tx-amount ${tx.type}">${tx.type==='income'?'+':'-'} ${formatCurrency(tx.amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balance)}</div><div class="msg-tx-date">${formatDate(tx.date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${tx.id})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${tx.id})" title="Excluir">✕</button></div>`,'msg-tx '+tx.type);
+  addChatMessage(transactionCardHTML(tx,balance),'msg-tx '+tx.type);
   addChatMessage(`<span>${escapeHtml(text)}</span>`,'msg-user');
   renderChatBanner();
 }
@@ -201,12 +201,31 @@ async function renderChatHistory(){
   for(const t of all){balance+=t.type==='income'?t.amount:-t.amount;balMap[t.date]=balance;}
   const sorted=[...all].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
   for(const t of sorted){
-    addChatMessage(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem"><div><div class="msg-tx-header"><span>${t.type==='income'?'📈':'📉'} <strong>${t.type==='income'?'Receita':'Despesa'}</strong></span><span class="msg-tx-category">${t.category}</span></div><div class="msg-tx-amount ${t.type}">${t.type==='income'?'+':'-'} ${formatCurrency(t.amount)}</div><div class="msg-tx-balance">Saldo: ${formatCurrency(balMap[t.date])}</div><div class="msg-tx-date">${formatDate(t.date)}</div></div><div style="display:flex;gap:0.3rem;flex-shrink:0"><button class="btn-sm" onclick="editTransaction(${t.id})" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="btn-sm danger" onclick="deleteTransaction(${t.id})" title="Excluir">✕</button></div>`,'msg-tx '+t.type);
+    addChatMessage(transactionCardHTML(t,balMap[t.date]),'msg-tx '+t.type);
   }
   await renderChatBanner();
   scrollChatToTop();
 }
 function addChatMessage(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;$('#chatMessages').prepend(d);}
+function transactionCardHTML(tx,balance,txId=tx.id){
+  const isIncome=tx.type==='income',id=Number(txId);
+  const description=tx.description||tx.command||'';
+  return `<div class="msg-tx-content">
+    <div class="msg-tx-info">
+      <div class="msg-tx-heading"><span class="msg-tx-type">${isIncome?'Receita':'Despesa'}</span><span class="msg-tx-category">${escapeHtml(tx.category||'Sem categoria')}</span></div>
+      <div class="msg-tx-description">${escapeHtml(description)}</div>
+      <div class="msg-tx-date">${formatDate(tx.date)}</div>
+    </div>
+    <div class="msg-tx-result">
+      <div class="msg-tx-amount ${tx.type}">${isIncome?'+':'−'} ${formatCurrency(tx.amount)}</div>
+      <div class="msg-tx-balance">Saldo após lançamento <strong>${formatCurrency(balance)}</strong></div>
+    </div>
+    <div class="msg-tx-actions">
+      <button class="btn-sm msg-tx-edit" onclick="editTransaction(${id})" title="Editar" aria-label="Editar lançamento"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
+      <button class="btn-sm danger msg-tx-delete" onclick="deleteTransaction(${id})" title="Excluir" aria-label="Excluir lançamento"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg></button>
+    </div>
+  </div>`;
+}
 function scrollChatToTop(){const c=$('#chatMessages');c.scrollTop=0;}
 async function renderChatBanner(){
   const el=$('#chatAlertBanner');if(!el)return;
